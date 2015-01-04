@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/docs/resources/docs.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/docs/resources/style.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/xtheme-gray.css"/>
+    <script type="text/javascript" src="../js/ext/adapter/ext/ext-base.js"></script>
+    <script type="text/javascript" src="../js/ext/ext-all.js"></script>
+    <script type="text/javascript" src="../js/ext/locale/ext-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        Ext.onReady(function(){
+            Ext.BLANK_IMAGE_URL = 'http://www.cnblogs.com/extjs2.0/resources/images/default/s.gif';
+            var strTabs = '[{"id":"BaseInfo","text":"基本信息","url":"http://www.baidu.com"},{"id":"fromInfo","text":"供货信息","url":"http://www.sohu.com"},{"id":"toInfo","text":"物流信息","url":"http://www.163.com"}]';
+            var oTabs = eval('(' + strTabs + ')');
+            if (oTabs != null && oTabs.length > 0) {
+                var tabs = new Ext.TabPanel({
+                    renderTo: 'tabsContent',
+                    activeTab: 0,
+                    height: 700,
+                    frame: true,
+                    items: [{
+                        id: oTabs[0].id,
+                        title: oTabs[0].text,
+                        html: ' <iframe scrolling="auto" frameborder="0" width="100%" height="100%" src="http://news.qq.com> </iframe>'
+                    }]
+                });
+                for (var j = 1; j < oTabs.length; j++) {
+                    var oItem = {};
+                    oItem.id = oTabs[j].id;
+                    oItem.title = oTabs[j].text;
+                    oItem.html = '<iframe scrolling="auto" frameborder="0" width="100%" height="100%" src="http://www.163.com"> </iframe>'
+                    tabs.add(oItem);
+                }
+            }
+            else {
+                document.getElementById("tabsContent").style.display = "none";
+            }
+        });
+    </script>
+</HEAD>
+<BODY>
+<div id="tabsContent" style="margin-top: 2px;">
+</div>
+</BODY>
+</HTML>

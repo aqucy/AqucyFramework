@@ -1,0 +1,293 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/xtheme-gray.css"/>
+    <script type="text/javascript" src="/js/ext/adapter/ext/ext-base.js"></script>
+    <script type="text/javascript" src="/js/ext/ext-all.js"></script>
+    <script type="text/javascript" src="/js/ext/source/locale/ext-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        if ((typeof Range !== "undefined") && !Range.prototype.createContextualFragment) {
+            Range.prototype.createContextualFragment = function (html) {
+                var frag = document.createDocumentFragment(),
+                        div = document.createElement("div");
+                frag.appendChild(div);
+                div.outerHTML = html;
+                return frag;
+            };
+        }
+        Ext.onReady(function () {
+            Ext.BLANK_IMAGE_URL = "/js/ext/resources/images/default/s.gif";
+            Ext.QuickTips.init();
+            var form1 = new Ext.form.FormPanel({
+                width: 350,
+                frame: true,//圆角和浅蓝色背景
+                bodyStyle: "padding:5px 5px 0",
+                items: [
+                    {
+                        fieldLabel: "菜单名称",//文本框标题
+                        xtype: "textfield",//表单文本框
+                        name: "menuName",
+                        id: "menuNameInput",
+                        width: 200,
+                        minLength: 2,
+                        maxLength: 50,
+                        allowBlank: false,
+                        minLengthText: '菜单名称最小需要2个字符',
+                        maxLengthText: "菜单名称不能超过50个字符",
+                        blankText: "该字符必须输入,不能为空"
+                    },
+                    {
+                        fieldLabel: "URL地址",
+                        xtype: "textfield",
+                        name: "url",
+                        id: "urlAddasInput",
+                        width: 200,
+                        minLength: 1,
+                        maxLength: 255,
+                        allowBlank: false,
+                        minLengthText: '菜单名称最小需要1个字符',
+                        maxLengthText: "菜单名称不能超过255个字符",
+                        blankText: "该字符必须输入,不能为空"
+                    },
+                    {
+                        fieldLabel: "ICON地址",
+                        xtype: "textfield",
+                        name: "icon",
+                        id: "iconInput",
+                        width: 200
+                    }
+                ]
+            })
+            //添加编辑菜单时用的窗体
+            var popWin = new Ext.Window({
+                width: 350,
+                height: 170,
+                modal: true,
+                constrain: true,
+                closeAction: "hide",
+                title: "标题",
+                items: form1,
+                buttons: [
+                    {
+                        text: "确定",
+                        handler: function () {
+                            save();
+                        }
+                    }, {
+                        text: "取消",
+                        handler: function () {
+                            popWin.hide();
+                        }
+                    }
+                ]
+            });
+
+            function save() {
+                //验证合法后使用加载进度条
+                if (form1.form.isValid()) {
+                    loadMarsk.show();
+                    //提交到服务器操作
+                    form1.form.submit({
+                        waitMsg: '正在进行登陆验证,请稍后...',
+                        url: '/systemManager/menuManager',
+                        method: 'post',
+                        params: {
+                            menuName: form1.findById("menuNameInput").getValue(),
+                            url: form1.findById("urlAddasInput").getValue(),
+                            icon: form1.findById("iconInput").getValue(),
+                            op: form1.data.op,
+                            id: form1.data.id
+                        },
+                        //提交成功的回调函数
+                        success: function (form, action) {
+                            if (action.result.errcode == 0) {
+                                popWin.hide();
+                                tree.root.reload();
+                                tree.root.expand(true, false);
+                            } else {
+                                Ext.Msg.alert("", action.result.errmsg);
+                            }
+                            loadMarsk.hide();
+                        },
+                        //提交失败的回调函数
+                        failure: function (form, action) {
+                            switch (action.failureType) {
+                                case Ext.form.Action.CLIENT_INVALID:
+                                    Ext.Msg.alert('错误提示', '表单数据非法请核实后重新输入！');
+                                    break;
+                                case Ext.form.Action.CONNECT_FAILURE:
+                                    Ext.Msg.alert('错误提示', '网络连接异常！');
+                                    break;
+                                case Ext.form.Action.SERVER_INVALID:
+                                    Ext.Msg.alert('错误提示', "您的输入用户信息有误，请核实后重新输入！");
+                                    simple.form.reset();
+                            }
+                            loadMarsk.hide();
+                        }
+                    });
+                }
+            };
+            var tree = new Ext.tree.TreePanel({
+                //渲染到
+                useArrows: true,
+                autoHeight: true,
+                split: true,
+                lines: true,
+                autoScroll: true,
+                animate: true,
+                enableDD: true,
+                border: false,
+                loader: new Ext.tree.TreeLoader({
+                    dataUrl: '/getMyMenu'
+                }),
+                listeners: {
+                    "contextmenu": function (node, e) {
+                        if (node.id > 0) {
+                            var nodemenu = new Ext.menu.Menu({
+                                items: [{
+                                    text: "添加子菜单",
+                                    iconCls: 'leaf',
+                                    //右键名称前的小图片
+                                    handler: function () {
+                                        var urlAddasInput = form1.findById("urlAddasInput");
+                                        form1.findById("menuNameInput").setValue("");
+                                        urlAddasInput.setValue("");
+                                        form1.findById("iconInput").setValue("");
+                                        form1.data = {
+                                            op: "subAdd",
+                                            id: node.id
+                                        };
+                                        popWin.setTitle("添加子菜单");
+                                        popWin.show();
+                                    }
+                                }, {
+                                    text: "编辑",
+                                    iconCls: 'leaf',
+                                    handler: function () {
+                                        var urlAddasInput = form1.findById("urlAddasInput");
+                                        form1.findById("menuNameInput").setValue(node.text);
+                                        urlAddasInput.setValue(node.attributes.url);
+                                        form1.findById("iconInput").setValue(node.attributes.icon);
+                                        if (!node.isLeaf()) {
+                                            urlAddasInput.disable();
+                                        } else {
+                                            urlAddasInput.enable();
+                                        }
+                                        form1.data = {
+                                            op: "edit",
+                                            id: node.id
+                                        };
+                                        popWin.setTitle("修改子菜单");
+                                        popWin.show();
+                                    }
+                                }, {
+                                    text: "删除",
+                                    iconCls: 'leaf',
+                                    handler: function () {
+                                        loadMarsk.show();
+                                        Ext.Ajax.request({
+                                            url: '/systemManager/menuManager?op=delete&id=' + node.id,
+                                            //根据id删除节点
+                                            success: function (request) {
+                                                tree.root.reload();
+                                                tree.root.expand(true, false);
+                                                loadMarsk.hide();
+                                            },
+                                            failure: function () {
+                                                alert("删除失败");
+                                                loadMarsk.hide();
+                                            }
+                                        });
+                                    }
+                                }]
+                            });
+                            nodemenu.showAt(e.getPoint()); //menu的showAt，不要忘记
+                        } else if (node.id == 0) {
+                            var nodemenu = new Ext.menu.Menu({
+                                items: [{
+                                    text: "添加子莘单",
+                                    iconCls: 'folder',
+                                    handler: function () {
+                                        var urlAddasInput = form1.findById("urlAddasInput");
+                                        form1.findById("menuNameInput").setValue("");
+                                        urlAddasInput.setValue("");
+                                        form1.findById("iconInput").setValue("");
+                                        form1.data = {
+                                            op: "subAdd",
+                                            id: node.id
+                                        };
+                                        popWin.setTitle("添加子菜单");
+                                        popWin.show();
+                                    }
+                                }]
+                            });
+                            nodemenu.showAt(e.getPoint());
+                        }
+                    }
+                }
+            });
+            var root = new Ext.tree.AsyncTreeNode({
+                text: 'XXX管理系统',
+                draggable: true,
+                id: '0'
+            });
+            tree.setRootNode(root);
+            tree.root.expand(true, false);
+            var loadMarsk = new Ext.LoadMask(document.body, {
+                msg: '正在加载数据，请稍候......',
+                removeMask: true// 完成后移除
+            });
+            tree.on("dragdrop", function (e, node) {
+                console.trace(node.text);
+                console.trace(node.parentNode.text);
+                loadMarsk.show();
+                Ext.Ajax.request({
+                    url: '/systemManager/menuManager',
+                    params: {
+                        op: "drag",
+                        id: node.id,
+                        parentId: node.parentNode.id
+
+                    },
+                    //根据id删除节点
+                    success: function (request) {
+                        loadMarsk.hide();
+                    },
+                    failure: function () {
+                        alert("操作失败");
+                        tree.root.reload();
+                        tree.root.expand(true, false);
+                        loadMarsk.hide();
+                    }
+                });
+                return true;
+            });
+            tree.on("nodedragover", function (e) {
+                var node = e.target;
+                if (node.leaf)
+                    node.leaf = false;
+                return true;
+            });
+            var viewport = new Ext.Viewport({
+                layout: 'border',
+                autoScroll: true,
+                items: [{
+                    region: 'center',
+                    deferredRender: false,
+                    bodyStyle: "overflow-y:hidden;overflow-x:auto",
+                    items: tree,
+                    autoScroll: true
+                }]
+            });
+        })
+        ;
+    </script>
+</head>
+<body>
+
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/docs/resources/docs.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/docs/resources/style.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/xtheme-gray.css"/>
+    <script type="text/javascript" src="../js/ext/adapter/ext/ext-base.js"></script>
+    <script type="text/javascript" src="../js/ext/ext-all.js"></script>
+    <script type="text/javascript" src="../js/ext/locale/ext-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        Ext.onReady(function(){
+            Ext.BLANK_IMAGE_URL = 'http://www.cnblogs.com/extjs2.0/resources/images/default/s.gif';
+            var strTabs = '[{"id":"BaseInfo","text":"基本信息","url":"http://www.baidu.com"},{"id":"fromInfo","text":"供货信息","url":"http://www.sohu.com"},{"id":"toInfo","text":"物流信息","url":"http://www.163.com"}]';
+            var oTabs = eval('(' + strTabs + ')');
+            if (oTabs != null && oTabs.length > 0) {
+                document.getElementById("frmContent").src = oTabs[0].url;
+                var tabs = new Ext.TabPanel({
+                    renderTo: 'tabsContent',
+                    activeTab: 0,
+                    collapsed: true,
+                    items: [{
+                        id: oTabs[0].id,
+                        title: oTabs[0].text,
+                        contentEl: 'tabItem'
+                    }]
+                });
+
+                for (var j = 1; j < oTabs.length; j++) {
+                    var oItem = {};
+                    oItem.id = oTabs[j].id;
+                    oItem.title = oTabs[j].text;
+                    oItem.contentEl = 'tabItem';
+                    tabs.add(oItem);
+                }
+
+                tabs.addListener("tabchange", function(tabs, nowtab){
+                    for (var s = 0; s < oTabs.length; s++) {
+                        if (oTabs[s].id == nowtab.id) {
+                            document.getElementById("frmContent").src = oTabs[s].url;
+                            break;
+                        }
+                    }
+                });
+            }
+            else {
+                document.getElementById("tabsContent").style.display = "none";
+            }
+        });
+    </script>
+</HEAD>
+<BODY>
+<div id="tabsContent" style="margin-top: 2px;">
+    <div id="tabItem" style="width: 0px; height: 0px;">
+    </div>
+</div>
+<div id="tabItemsRender" style="height: 440px; overflow: auto; border-left-style: solid; border-left-width: 1px; border-left-color: #8DB2E3; border-right-style: solid; border-right-width: 1px; border-right-color: #8DB2E3; border-bottom-style: solid; border-bottom-width: 1px; border-bottom-color: #8DB2E3;">
+    <iframe id="frmContent" name="frmContent" src="http://blog.163.com/baihongtao_618/blog/" frameborder="0" height="100%" width="100%">
+    </iframe>
+</div>
+</BODY>
+</HTML>

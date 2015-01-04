@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/xtheme-gray.css"/>
+    <script type="text/javascript" src="../js/ext/adapter/ext/ext-base.js"></script>
+    <script type="text/javascript" src="../js/ext/ext-all.js"></script>
+    <script type="text/javascript" src="../js/ext/source/locale/ext-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        if ((typeof Range !== "undefined") && !Range.prototype.createContextualFragment)
+        {
+            Range.prototype.createContextualFragment = function(html)
+            {
+                var frag = document.createDocumentFragment(),
+                        div = document.createElement("div");
+                frag.appendChild(div);
+                div.outerHTML = html;
+                return frag;
+            };
+        }
+        Ext.onReady(function () {
+            var pa = new Ext.FormPanel({
+                renderTo: content,
+                labelAlign: 'left',
+                buttonAlign: 'right',
+                border:false,
+                frame: true,
+                items: [
+                    {
+                        layout: 'column',
+                        border: false,
+                        labelSeparator: ':',
+                        defaults: {
+                            layout: 'form',
+                            labelWidth: 12 * 3,
+                            border: false
+                        },
+                        items: [
+                            {
+                                items: [
+                                    {
+                                        xtype: 'field',
+                                        fieldLabel: '姓名'
+                                    }
+                                ]
+                            }, {
+                                items: [
+                                    {
+                                        xtype: 'field',
+                                        fieldLabel: '性别'
+                                    }
+                                ]
+                            }, {
+                                items: [
+                                    {
+                                        xtype: 'field',
+                                        fieldLabel: '地址'
+                                    }
+                                ]
+                            }, {
+                                items: [
+                                    {
+                                        xtype: 'button',
+                                        text: "查询",
+                                        iconCls: "accept"
+                                    }
+                                ]
+                            }
+
+                        ]//items
+                    }
+                ]//items
+            })//FormPanel
+
+        });
+    </script>
+</head>
+<body>
+<div id="content"/>
+</body>
+</html>

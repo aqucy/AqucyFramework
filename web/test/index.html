@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/docs/resources/docs.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/docs/resources/style.css"/>
+    <link rel="stylesheet" type="text/css" href="../js/ext/resources/css/xtheme-gray.css"/>
+    <script type="text/javascript" src="../js/ext/adapter/ext/ext-base.js"></script>
+    <script type="text/javascript" src="../js/ext/ext-all.js"></script>
+    <script type="text/javascript" src="../js/ext/locale/ext-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        if ((typeof Range !== "undefined") && !Range.prototype.createContextualFragment)
+        {
+            Range.prototype.createContextualFragment = function(html)
+            {
+                var frag = document.createDocumentFragment(),
+                        div = document.createElement("div");
+                frag.appendChild(div);
+                div.outerHTML = html;
+                return frag;
+            };
+        }
+        Ext.onReady(function () {
+            var tabPanel = new Ext.TabPanel({
+                border: false,
+                activeTab: 0,
+                tabPosition: 'top',
+                animCollapse:true,
+                enableTabScroll:true,
+                height:document.body.clientHeight,
+                items: [{
+                    title: '首页',
+                    autoScroll: true,
+                    closable: false,
+                    bodyStyle: 'padding:5px;'
+                }]
+            });
+
+            var loadPage = function (record) {
+                var tab = tabPanel.getComponent(record.id);
+
+                if (!tab) {
+                    tab = tabPanel.add({
+                        id: record.id,
+                        title: record.text,
+                        closable: true,
+                        layout:'fit',
+//                        html: ' <iframe scrolling="auto" frameborder="0" width="100%" height="100%" src="' + record.attributes.url + '"> </iframe>',
+                        html:'<iframe  frameborder="0" width="100%" height="100%" src="http://www.baidu.com"></iframe>',
+                        autoScroll: true
+                    });
+                }
+                tabPanel.setActiveTab(tab);
+
+            };
+
+            Ext.BLANK_IMAGE_URL = "js/ext/resources/images/default/s.gif";
+            var Tree = Ext.tree;
+            var tree = new Tree.TreePanel({
+                el: 'west_content',
+                //渲染到
+                useArrows: true,
+                autoHeight: true,
+                split: true,
+                lines: true,
+                autoScroll: true,
+                animate: true,
+                enableDD: true,
+                border: false,
+                containerScroll: true,
+                loader: new Tree.TreeLoader({
+                    dataUrl: '/testTreeJson'
+                })
+            });
+            var root = new Tree.AsyncTreeNode({
+                text: 'XXX管理系统',
+                draggable: true,
+                id: '0'
+            });
+            tree.on("click", function (node, e) {
+                loadPage(node);
+            });
+            tree.setRootNode(root);
+            tree.render();
+            root.expand();
+            var viewport = new Ext.Viewport({
+                layout: 'border',
+                items: [{
+                    region: 'west',
+                    id: 'west',
+                    title: '菜单导航',
+                    split: true,
+                    width: 200,
+                    minSize: 200,
+                    maxSize: 400,
+                    collapsible: true,
+//                    margins: '30 0 2 2',
+//                    cmargins: '30 5 2 2',
+                    layout: 'fit',
+                    layoutConfig: {
+                        activeontop: true
+                    },
+                    defaults: {
+                        bodyStyle: 'margin:0;padding:0;'
+                    },
+                    items: new Ext.TabPanel({
+                        border: false,
+                        activeTab: 0,
+                        tabPosition: 'bottom',
+                        items: [{
+                            contentEl: 'west_content',
+                            title: '系统管理',
+                            autoScroll: true,
+                            bodyStyle: 'padding:5px;'
+                        }, {
+                            title: '网上办公',
+                            autoScroll: true,
+                            bodyStyle: 'padding:5px;'
+                        }]
+                    })
+                }, {
+                    region: 'center',
+                    el: 'center',
+                    deferredRender: false,
+//                    margins: '30 0 2 0',
+                    items: tabPanel,
+//                    html: '<iframe id="center-iframe" width="100%" height="100%"  name="main" frameborder="0" scrolling="auto" style="border:0px none; background-color:#BBBBBB; " ></iframe>',
+                    autoScroll: true
+                }, {
+                    region: 'south',
+                    margins: '0 0 0 2',
+                    border: false,
+                    html: '<div>Copyright © 2009 浙江新昌 Kimi Yang All Rights Reserved</div>'
+                }]
+            });
+            setTimeout(function () {
+                Ext.get('loading').remove();
+                Ext.get('loading-mask').fadeOut({
+                    remove: true
+                });
+            }, 250)
+        });
+    </script>
+</head>
+<body>
+<form id="form1" runat="server">
+    <div id="loading-mask" style=""></div>
+    <div id="loading">
+        <div class="loading-indicator"><img src="../js/ext/resources/images/vista/s.gif" width="32" height="32"
+                                            style="margin-right:8px;" align="absmiddle"/>Loading...
+        </div>
+    </div>
+    <!--<div id="header"><h1>XXX管理系统</h1></div>-->
+    <div>
+        <span style="float: left">欢迎  <b>admin </b>
+        </span>
+<span id="aLoginOut" runat="server" style="float: right"><a
+        onclick="if (!window.confirm('您确认要注消当前登录用户吗？')){return false;}"
+        href="#">注销</a></span>
+    </div>
+    <div id="north"></div>
+    <div id="west">
+    </div>
+    <div id="center">
+    </div>
+    <div id="west_content" style="height:300px; ">
+    </div>
+</form>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/xtheme-gray.css"/>
+    <script type="text/javascript" src="/js/ext/adapter/ext/ext-base.js"></script>
+    <script type="text/javascript" src="/js/ext/ext-all.js"></script>
+    <script type="text/javascript" src="/js/ext/source/locale/ext-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        if ((typeof Range !== "undefined") && !Range.prototype.createContextualFragment) {
+            Range.prototype.createContextualFragment = function (html) {
+                var frag = document.createDocumentFragment(),
+                        div = document.createElement("div");
+                frag.appendChild(div);
+                div.outerHTML = html;
+                return frag;
+            };
+        }
+        Ext.onReady(function () {
+            Ext.BLANK_IMAGE_URL = "/js/ext/resources/images/default/s.gif";
+            Ext.QuickTips.init();
+            var tabPanel = new Ext.TabPanel({
+                border: true,
+                activeTab: 0,
+                tabPosition: 'top',
+                animCollapse: true,
+                height: document.body.clientHeight - 20,
+                enableTabScroll: true,
+                autoScroll: true,
+                items: [{
+                    title: '首页',
+                    autoScroll: true,
+                    closable: false,
+                    id:0,
+                    bodyStyle: 'padding:5px;'
+                }]
+            });
+            Ext.EventManager.onWindowResize(function (width, height) {
+                tabPanel.setHeight(height - 20);
+            });
+            var loadPage = function (record) {
+                var tab = tabPanel.getComponent("tab-"+record.id);
+                if (!tab) {
+                    tab = tabPanel.add({
+                        id: "tab-"+record.id,
+                        title: record.text,
+                        closable: true,
+                        layout: 'fit',
+                        items: [new Ext.ux.IFrameComponent({id: "frame-" + record.id, url: record.attributes.url})],
+                        autoScroll: true
+                    });
+                }
+                tabPanel.setActiveTab(tab);
+
+            };
+            Ext.BLANK_IMAGE_URL = "js/ext/resources/images/default/s.gif";
+            var tree = new Ext.tree.TreePanel({
+                //渲染到
+                useArrows: true,
+                autoHeight: true,
+                split: true,
+                lines: true,
+                autoScroll: true,
+                animate: true,
+                enableDD: true,
+                border: false,
+                loader: new Ext.tree.TreeLoader({
+                    dataUrl: '/getMyMenu'
+                })
+            });
+            var root = new Ext.tree.AsyncTreeNode({
+                text: 'XXX管理系统',
+                draggable: true,
+                id: '0'
+            });
+            tree.on("click", function (node, e) {
+                if (!node.isLeaf()||node.attributes.url == "" || node.attributes.url == "#"||node.id==0) {
+                    e.preventDefault();
+                } else {
+                    loadPage(node);
+                }
+
+            });
+            tree.setRootNode(root);
+            root.expand();
+            var viewport = new Ext.Viewport({
+                layout: 'border',
+                autoScroll: true,
+                items: [{
+                    region: 'west',
+                    id: 'west',
+                    title: '菜单导航',
+                    split: true,
+                    width: 200,
+                    minSize: 200,
+                    maxSize: 400,
+                    collapsible: true,
+                    layout: 'fit',
+                    layoutConfig: {
+                        activeontop: true
+                    },
+                    defaults: {
+                        bodyStyle: 'margin:0;padding:0;'
+                    },
+                    items: tree
+                }, {
+                    region: 'center',
+                    deferredRender: false,
+                    bodyStyle: "overflow-y:hidden;overflow-x:auto",
+                    items: tabPanel,
+                    autoScroll: true
+                }, {
+                    region: 'south',
+                    margins: '0 0 0 2',
+                    border: false,
+                    html: '<div>Copyright © 2014 古刹飞鹰 All Rights Reserved</div>'
+                }]
+            });
+        });
+        //在TabPane中添加IFrame
+        Ext.ux.IFrameComponent = Ext.extend(Ext.BoxComponent, {
+            onRender: function (ct, position) {
+                this.el = ct.createChild({
+                    tag: 'iframe',
+                    id: 'iframe-' + this.id,
+                    name: 'iframe-' + this.id,
+                    frameBorder: 0,
+                    src: this.url.indexOf("?")>-1?this.url+"&r="+(new Date().getTime()):this.url+"?r="+(new Date().getTime())
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+
+</body>
+</html>
