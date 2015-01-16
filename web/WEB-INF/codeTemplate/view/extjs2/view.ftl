@@ -10,12 +10,18 @@
     <script type="text/javascript" src="/js/ext/adapter/ext/ext-base.js"></script>
     <script type="text/javascript" src="/js/ext/ext-all.js"></script>
     <script type="text/javascript" src="/js/ext/source/locale/ext-lang-zh_CN.js"></script>
+    <style>
+        .x-date-middle {
+            padding-top:2px;padding-bottom:2px;
+            width:130px; /* FF3 */
+        }
+    </style>
     <script type="text/javascript">
         Ext.onReady(function () {
             Ext.BLANK_IMAGE_URL = "/js/ext/resources/images/default/s.gif";
             Ext.QuickTips.init();
             Ext.form.Field.prototype.msgTarget = "qtip";//side:右侧 under:下方  id: [element id]错误提示显示在指定id的HTML元件中 qtip:鼠标移动到组件时显示
-            var opUrl = "/systemManager/userManager";
+            var opUrl = "/project/${tableConfig.tableName}";
             var delUrl = opUrl;
             var viewUrl = opUrl;
             var addurl = opUrl;
@@ -26,44 +32,34 @@
                 removeMask: true// 完成后移除
             });
 /////////////////////////字典匹配////////////////////////////////////////////////////
-            function renderSex(value) {
-                if (value == '1') {
-                    return "男";
-                } else {
-                    return "女";
+            <#if tableConfig.dicts?exists>
+                <#list  tableConfig.dicts?keys as key>
+            function render_${acy[key]}(value) {
+                    <#list  tableConfig.dicts[key] as obj>
+                if(value=='${obj.value}'){
+                    return "${obj.label}";
                 }
+                    </#list>
             }
 
-            function renderStatus(value) {
-                if (value == "1") {
-                    return "已激活";
-                } else if (value == "0") {
-                    return "未激活";
-                } else if (value == "2") {
-                    return "已注销";
-                }
-            }
-
+                </#list>
+            </#if>
 ///////////////////////////Store区///////////////////////////////////
             var store_grid = new Ext.data.JsonStore({
                 url: viewUrl+'?op=view', //后缀名为json的文件
                 totalProperty: "totalCount",
                 root: 'datas',     //读取里面的users对象
-                fields: ['username', 'userRealName', 'sex', 'status', 'password', 'QQ', 'mail', 'mobile', 'phone', 'create_time',] //读取里面的属性
+                fields: [${acy['columnStr']}] //读取里面的属性
             });
-
-            var store_status = new Ext.data.JsonStore({
-                url: dictUrl+'acyframework_users_status',
+            <#if tableConfig.dicts?exists>
+                <#list  tableConfig.dicts?keys as key>
+            var store_${acy[key]} = new Ext.data.JsonStore({
+                url: dictUrl+'${key}',
                 root: 'datas',
                 fields: ['label', 'value']
             });
-
-            var store_sex = new Ext.data.JsonStore({
-                url: dictUrl+'acyframework_users_sex',
-                root: 'datas',
-                fields: ['label', 'value']
-            });
-
+                </#list>
+            </#if>
 
             //定义勾选框，不需要可不必定义
             var sm = new Ext.grid.CheckboxSelectionModel();
@@ -71,16 +67,22 @@
             var colM = new Ext.grid.ColumnModel([
                 new Ext.grid.RowNumberer(),//增加自动编号，不需要可不必定义
                 sm,//勾选框，不需要可不必定义
-                {header: '登录名', dataIndex: 'username', width: 170, sortable: true},// 生成列，sortable为列排序，不需要设置为false，默认false，renderer为该列增加自定义函数
-                {header: '姓名', dataIndex: 'userRealName', width: 90}, // sortable进行排序
-                {header: '性别', dataIndex: 'sex', width: 50, renderer: renderSex},
-                {header: '状态', dataIndex: 'status', width: 70, renderer: renderStatus},
-                {header: '创建时间', dataIndex: 'create_time', width: 170},
-                {header: '手机', dataIndex: 'mobile', width: 170},
-                {header: '固话', dataIndex: 'phone', width: 170},
-                {header: '邮箱', dataIndex: 'mail', width: 170},
-                {header: 'QQ', dataIndex: 'QQ', width: 170},
-                {header: '最后登录', dataIndex: 'lastLoginDate', width: 170}
+                    <#list tableConfig.columnPojos as pojo>
+                    <#if pojo.displayName??>
+                {
+                    header: '${pojo.displayName}',
+                    <#if pojo.dictCode??>
+                        renderer: render_${acy[pojo.dictCode]},
+                    </#if>
+                    dataIndex: '${pojo.columnName}'
+                },
+                    </#if>
+                    </#list>
+                {
+                    header: 'id',
+                    hidden:true,
+                    dataIndex: 'id'
+                }
             ]);
 
             //生成表格
@@ -220,98 +222,51 @@
                         labelSeparator: ':',
                         defaults: {
                             layout: 'form',
-                            labelWidth: 12 * 5,
+                            labelWidth: 12 * ${tableConfig.maxQueryColumnLen},
                             bodyStyle: 'padding:0 0 0 20',
                             border: false
                         },
                         items: [
-                            {
-                                items: [
-                                    {
-                                        xtype: 'field',
-                                        maxlength: 10,
-                                        minLength: 2,
-                                        name: "user.userRealName",
-                                        fieldLabel: '姓名'
-                                    },
-                                    {
-                                        xtype: 'hidden',
-                                        name: "op",
-                                        value: "view",
-                                        fieldLabel: 'op'
-                                    }
-                                ]
-                            }, {
-                                items: [
-                                    {
-                                        xtype: "combo",
-                                        fieldLabel: "状态",
-                                        hiddenName: "user.status",
-                                        name: "status",
-                                        valueField: "value",
-                                        displayField: "label",
-                                        selectOnFocus: true,
-                                        emptyText: "请选择...",
-                                        mode: 'remote',
-                                        forceSelection: true,
-                                        triggerAction: 'all',
-                                        width: 70,
-                                        store: store_status,
-                                        listeners: {
-                                            select: function (combo, record, index) {
 
-                                            },
-                                            render: function (comb, record, index) {
-
-                                            }
-                                        }
-                                    }
-                                ]
-                            }, {
-                                items: [{
-                                    xtype: "combo",
-                                    fieldLabel: "性别",
-                                    name: "sex",
-                                    hiddenName: "user.sex",
-                                    blankText: "不能为空，请填写",
-                                    valueField: "value",
-                                    displayField: "label",
-                                    emptyText: "请选择...",
-                                    mode: 'remote',
-                                    forceSelection: true,
-                                    triggerAction: 'all',
-                                    width: 70,
-                                    store: store_sex,
-                                    listeners: {
-                                        select: function (combo, record, index) {
-
+                            <#list tableConfig.columnPojos as pojo>
+                                <#if pojo.allowQuery>
+                                    <#if pojo.dictCode??>
+                                        {
+                                            items: [{
+                                                xtype: "combo",
+                                                fieldLabel: "${pojo.displayName}",
+                                                labelStyle : "text-align:right;width: ${12*tableConfig.maxQueryColumnLen};",
+                                                hiddenName: "${tableConfig.tableName}.${pojo.columnName}",
+                                                name: "${pojo.columnName}",
+                                                allowBlank: ${(!pojo.required)?c},
+                                                blankText: "不能为空，请填写",
+                                                valueField: "value",
+                                                displayField: "label",
+                                                emptyText: "请选择...",
+                                                mode: 'remote',
+                                                forceSelection: true,
+                                                triggerAction: 'all',
+                                                width: 70,
+                                                store: store_${pojo.columnName}
+                                            }]
                                         },
-                                        render: function (comb, record, index) {
-
-                                        }
-                                    }
-                                }]
-                            }, {
-                                items: [
-                                    {
-                                        xtype: 'field',
-                                        maxlength: 15,
-                                        minLength: 5,
-                                        name: "user.QQ",
-                                        fieldLabel: 'QQ号码'
-                                    }
-                                ]
-                            }, {
-                                items: [
-                                    {
-                                        xtype: 'field',
-                                        maxlength: 255,
-                                        minLength: 2,
-                                        name: "user.address",
-                                        fieldLabel: '地址'
-                                    }
-                                ]
-                            }, {
+                                    <#else>
+                                        {
+                                            items: [
+                                                {
+                                                    xtype: 'field',
+                                                    maxlength: 15,
+                                                    minLength: 5,
+                                                    name: "${tableConfig.tableName}.${pojo.columnName}",
+                                                    labelStyle : "text-align:right;width: ${12*tableConfig.maxQueryColumnLen};",
+                                                    fieldLabel: "${pojo.displayName}"
+                                                }
+                                            ]
+                                        },
+                                    </#if>
+                                </#if>
+                            </#list>
+                             {
                                 layout: "table",
                                 items: [
                                     {
@@ -331,6 +286,12 @@
                                             query_form.form.reset();
                                             query(query_form);
                                         }
+                                    },
+                                    {
+                                        xtype: 'hidden',
+                                        name: "op",
+                                        value: "view",
+                                        fieldLabel: 'op'
                                     }
                                 ]
                             }
@@ -355,12 +316,54 @@
                 json = selArr[0].json;
                 var p = new Ext.FormPanel
                 ({
-                    frame: true, labelWidth: 12 * 5,
+                    frame: true, labelWidth: 12 * ${tableConfig.maxDisplayColumnLen},
                     items: [
+                    <#list tableConfig.columnPojos as pojo>
+                        <#if pojo.displayName??>
+                            <#if pojo.dictCode??>
+                                {
+                                    xtype: "combo",
+                                    fieldLabel: "${pojo.displayName}",
+                                    labelStyle : "text-align:right;width: ${12*tableConfig.maxDisplayColumnLen};",
+                                    id: "${pojo.columnName}",
+                                    hiddenName: "${tableConfig.tableName}.${pojo.columnName}",
+                                    name: "${pojo.columnName}",
+                                    allowBlank: ${(!pojo.required)?c},
+                                    blankText: "不能为空，请填写",
+                                    valueField: "value",
+                                    displayField: "label",
+                                    emptyText: "请选择...",
+                                    mode: 'remote',
+                                    forceSelection: true,
+                                    triggerAction: 'all',
+                                    width: 70,
+                                    store: store_${pojo.columnName}
+                                },
+                            <#else>
+                                {
+                                    xtype: "textfield",
+                                    fieldLabel: "${pojo.displayName}",
+                                    labelStyle : "text-align:right;width: ${12*tableConfig.maxDisplayColumnLen};",
+                                    id: "${pojo.columnName}",
+                                    hiddenName: "${tableConfig.tableName}.${pojo.columnName}",
+                                <#if pojo.required==true>
+                                    allowBlank: ${(!pojo.required)?c},
+                                    blankText: "不能为空，请填写",
+                                </#if>
+                                <#if pojo.regex??>
+                                    regex:/${pojo.regex}/,
+                                            regexText:'${pojo.regexErrorMsg!}',
+                                </#if>
+                                    value:json.${pojo.columnName},
+                                    width: 201
+                                },
+                            </#if>
+                        </#if>
+                    </#list>
                         {
                             xtype: "hidden",
                             id: "id",
-                            name: "user.id",
+                            name: "${tableConfig.tableName}.id",
                             width: 201,
                             value: json.id
                         },
@@ -370,145 +373,23 @@
                             name: "op",
                             width: 201,
                             value: "edit"
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "登录ID",
-                            id: "username",
-                            name: "user.username",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            value: json.username,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "密码",
-                            id: "password",
-                            name: "user.password",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            value: json.password,
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "状态",
-                            id: "status",
-                            hiddenName: "user.status",
-                            name: "status",
-                            allowBlank: false,
-                            valueField: "value",
-                            displayField: "label",
-                            selectOnFocus: true,
-                            mode: 'remote',
-                            forceSelection: true,
-                            emptyText: "请选择...",
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_status,
-                            listeners: {
-                                select: function (combo, record, index) {
-
-                                },
-                                render: function (comb, record, index) {
-
-                                }
-                            }
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "姓名",
-                            id: "userRealName",
-                            name: "user.userRealName",
-                            allowBlank: false,
-                            minLength: 2,
-                            maxlength: 5,
-                            value: json.userRealName,
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "性别",
-                            id: "sex",
-                            name: "sex",
-                            hiddenName: "user.sex",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            valueField: "value",
-                            displayField: "label",
-                            mode: 'remote',
-                            forceSelection: true,
-                            emptyText: "请选择...",
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_sex,
-                            listeners: {
-                                select: function (combo, record, index) {
-
-                                },
-                                render: function (comb, record, index) {
-
-                                }
-                            }
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "手机",
-                            id: "mobile",
-                            name: "user.mobile",
-                            value: json.mobile,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "固定电话",
-                            id: "phone",
-                            name: "user.phone",
-                            value: json.phone,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "地址",
-                            id: "address",
-                            name: "user.address",
-                            value: json.address,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "QQ号码",
-                            id: "QQ",
-                            name: "user.QQ",
-                            value: json.QQ,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "邮箱地址",
-                            id: "mail",
-                            name: "user.mail",
-                            value: json.mail,
-                            width: 201
                         }
                     ]
                 });
-                store_sex.on("load", function () {
-                    comb = Ext.getCmp("sex");
-                    comb.setValue(json.sex);
+                <#if tableConfig.dicts?exists>
+                    <#list  tableConfig.dicts?keys as key>
+                store_${acy[key]}.on("load", function () {
+                    comb = Ext.getCmp("${acy[key]}");
+                    comb.setValue(json.${acy[key]});
                 });
-                store_status.on("load", function () {
-                    comb = Ext.getCmp("status");
-                    comb.setValue(json.status);
-                });
-                store_status.load();
-                store_sex.load();
+                store_${acy[key]}.load();
+                    </#list>
+                </#if>
                 var win = new Ext.Window
                 ({
                     title: "编辑窗口",
                     autoHeight: true,
-                    width: 300,
+                    width: 330,
                     resizable: false,
                     buttonAlign: "center",
                     modal: true,//height:300,
@@ -542,111 +423,55 @@
                 var p = new Ext.FormPanel
                 ({
                     frame: true,
-                    labelWidth: 12 * 5,
+                    labelWidth: 12 * ${tableConfig.maxDisplayColumnLen},
                     items: [
+                    <#list tableConfig.columnPojos as pojo>
+                        <#if pojo.displayName??>
+                        <#if pojo.dictCode??>
+                        {
+                            xtype: "combo",
+                            fieldLabel: "${pojo.displayName}",
+                            labelStyle : "text-align:right;width: ${12*tableConfig.maxDisplayColumnLen};",
+                            id: "${pojo.columnName}",
+                            hiddenName: "${tableConfig.tableName}.${pojo.columnName}",
+                            name: "${pojo.columnName}",
+                            allowBlank: ${(!pojo.required)?c},
+                            blankText: "不能为空，请填写",
+                            valueField: "value",
+                            displayField: "label",
+                            emptyText: "请选择...",
+                            mode: 'remote',
+                            forceSelection: true,
+                            triggerAction: 'all',
+                            width: 70,
+                            store: store_${pojo.columnName}
+                        },
+                        <#else>
+                            {
+                                xtype: "textfield",
+                                fieldLabel: "${pojo.displayName}",
+                                labelStyle : "text-align:right;width: ${12*tableConfig.maxDisplayColumnLen};",
+                                id: "${pojo.columnName}",
+                                name: "${tableConfig.tableName}.${pojo.columnName}",
+                                <#if pojo.required==true>
+                                    allowBlank: ${(!pojo.required)?c},
+                                    blankText: "不能为空，请填写",
+                                </#if>
+                                <#if pojo.regex??>
+                                    regex:/${pojo.regex}/,
+                                    regexText:'${pojo.regexErrorMsg!}',
+                                </#if>
+                                width: 201
+                            },
+                        </#if>
+                        </#if>
+                    </#list>
                         {
                             xtype: "hidden",
                             id: "op",
                             name: "op",
                             width: 201,
                             value: "add"
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "登录ID",
-                            id: "username",
-                            name: "user.username",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "密码",
-                            id: "password",
-                            name: "user.password",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "状态",
-                            id: "status",
-                            hiddenName: "user.status",
-                            name: "status",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            valueField: "value",
-                            displayField: "label",
-                            emptyText: "请选择...",
-                            mode: 'remote',
-                            forceSelection: true,
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_status
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "姓名",
-                            id: "userRealName",
-                            name: "user.userRealName",
-                            allowBlank: false,
-                            minLength: 2,
-                            maxlength: 5,
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "性别",
-                            id: "sex",
-                            name: "sex",
-                            hiddenName: "user.sex",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            valueField: "value",
-                            displayField: "label",
-                            emptyText: "请选择...",
-                            mode: 'remote',
-                            forceSelection: true,
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_sex
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "手机",
-                            id: "mobile",
-                            name: "user.mobile",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "固定电话",
-                            id: "phone",
-                            name: "user.phone",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "地址",
-                            id: "address",
-                            name: "user.address",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "QQ号码",
-                            id: "QQ",
-                            name: "user.QQ",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "邮箱地址",
-                            id: "mail",
-                            name: "user.mail",
-                            width: 201
                         }
                     ]
                 });
@@ -655,7 +480,7 @@
                 ({
                     title: "新增窗口",
                     autoHeight: true,
-                    width: 300,
+                    width: 320,
                     resizable: false,
                     buttonAlign: "center",
                     modal: true,//height:300,

@@ -1,0 +1,233 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/xtheme-gray.css"/>
+    <link rel="stylesheet" type="text/css" href="/css/icon.css"/>
+    <script type="text/javascript" src="/js/ext/adapter/ext/ext-base.js"></script>
+    <script type="text/javascript" src="/js/ext/ext-all.js"></script>
+    <script type="text/javascript" src="/js/ext/source/locale/ext-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        Ext.onReady(function () {
+            Ext.BLANK_IMAGE_URL = "/js/ext/resources/images/default/s.gif";
+            Ext.QuickTips.init();
+            Ext.form.Field.prototype.msgTarget = "qtip";//side:右侧 under:下方  id: [element id]错误提示显示在指定id的HTML元件中 qtip:鼠标移动到组件时显示
+            var opUrl = "/systemManager/createCodeManager";
+            var delUrl = opUrl;
+            var viewUrl = opUrl;
+            var addurl = opUrl;
+            var editUrl = opUrl;
+            var dictUrl = "/getDict?code=";
+            var loadMarsk = new Ext.LoadMask(document.body, {
+                msg: '正在加载数据，请稍候......',
+                removeMask: true// 完成后移除
+            });
+
+///////////////////////////Store区///////////////////////////////////
+            var store_grid = new Ext.data.JsonStore({
+                url: viewUrl+'', //后缀名为json的文件
+                totalProperty: "totalCount",
+                root: 'datas',     //读取里面的users对象
+                fields: ['columnName', 'displayName', 'dictCode', 'reg', 'required', 'formType','regErrMsg','allowQuery','formType'] //读取里面的属性
+            });
+
+            var store_status = new Ext.data.JsonStore({
+                url: dictUrl+'acyframework_users_status',
+                root: 'datas',
+                fields: ['label', 'value']
+            });
+
+            var store_sex = new Ext.data.JsonStore({
+                url: dictUrl+'acyframework_users_sex',
+                root: 'datas',
+                fields: ['label', 'value']
+            });
+
+
+
+            //定义列,在这里定义每列的宽度
+            var colM = new Ext.grid.ColumnModel([
+                new Ext.grid.RowNumberer(),//增加自动编号，不需要可不必定义
+                {
+                    header: '字段',
+                    dataIndex: 'columnName',
+                    width: 80,
+                    sortable: true
+                },// 生成列，sortable为列排序，不需要设置为false，默认false，renderer为该列增加自定义函数
+                {
+                    header: '显示名称',
+                    dataIndex: 'displayName',
+                    width: 90,
+                    editor:new Ext.form.TextField({
+                        allowBlank: true
+                    })
+                }, // sortable进行排序
+                {
+                    header: '字典编码',
+                    dataIndex: 'dictCode',
+                    width: 50,
+                    editor:new Ext.form.TextField({
+                        allowBlank: true
+                    })
+                },
+                {
+                    header: '正则验证',
+                    dataIndex: 'reg',
+                    width: 70,
+                    editor:new Ext.form.TextField({
+                        allowBlank: true
+                    })
+                },
+                {
+                    header: '验证失败消息',
+                    dataIndex: 'regErrMsg',
+                    width: 70,
+                    editor:new Ext.form.TextField({
+                        allowBlank: true
+                    })
+                },
+                {
+                    header: '必填',
+                    dataIndex: 'required',
+                    width: 70,
+                    editor:new Ext.form.Checkbox({
+                        allowBlank: true
+                    })
+                },
+                {
+                    header: '可查询',
+                    dataIndex: 'allowQuery',
+                    width: 70,
+                    editor:new Ext.form.Checkbox({
+                        allowBlank: true
+                    })
+                },
+                {header: '表单类型', dataIndex: 'formType', width: 170}
+            ]);
+
+            //生成表格
+            var grid = new Ext.grid.EditorGridPanel({
+                loadMask: {
+                    msg: '数据加载中，请稍候...'
+                },
+                cm: colM,
+                clicksToEdit:1,
+                store: store_grid,
+                viewConfig: {
+                    forceFit: true
+                },
+                tbar: []
+            });
+            var viewport = new Ext.Viewport({
+                layout: 'border',
+                autoScroll: true,
+                items: [{
+                    region: 'center',
+                    deferredRender: false,
+                    bodyStyle: "overflow-y:hidden;overflow-x:auto",
+                    items: grid,
+                    autoScroll: true
+                }]
+            });
+//////////////////////查询界面/////////////////////
+            var query_form = new Ext.FormPanel({
+                renderTo: grid.tbar,
+                labelAlign: 'left',
+                buttonAlign: 'right',
+                border: false,
+                frame: true,
+                items: [
+                    {
+                        layout: 'table',
+                        layoutConfig: {
+                            columns: 2
+                        },
+                        border: false,
+                        labelSeparator: ':',
+                        defaults: {
+                            layout: 'form',
+                            labelWidth: 12 * 8,
+                            bodyStyle: 'padding:0 0 0 20',
+                            border: false
+                        },
+                        items: [
+                            {
+                                items: [
+                                    {
+                                        xtype: 'field',
+                                        maxlength: 10,
+                                        minLength: 2,
+                                        name: "targetName",
+                                        value:'acyframework_users',
+                                        id:'tableName',
+                                        fieldLabel: '表或视图名称'
+                                    },{
+                                        xtype: 'hidden',
+                                        maxlength: 10,
+                                        minLength: 2,
+                                        name: "op",
+                                        value:'getColumn',
+                                        fieldLabel: '表或视图名称'
+                                    }
+                                ]
+                            }, {
+                                layout: "table",
+                                items: [
+                                    {
+                                        xtype: "button",
+                                        text: "确定",
+                                        iconCls: "accept",
+                                        handler: function () {
+                                            store_grid.baseParams = query_form.form.getValues();
+                                            store_grid.load();
+                                        }
+                                    },{
+                                        xtype: "button",
+                                        text: "生成代码",
+                                        iconCls: "find",
+                                        handler: function () {
+                                            var arr = store_grid.data.items;
+                                            var json={};
+                                            var jsonArr = new Array();
+                                            for(var i=0;i<arr.length;i++){
+                                                jsonArr.push(arr[i].data)
+                                            }
+                                            json.datas = jsonArr;
+                                            json.tableName = Ext.getCmp("tableName").getValue();
+                                            loadMarsk.show();
+                                            Ext.Ajax.request({
+                                                url: opUrl,
+                                                method:'POST',
+                                                params:{
+                                                    op:'createCode',
+                                                    json:JSON.stringify(json)
+                                                },
+                                                //根据id删除节点
+                                                success: function (request) {
+                                                    loadMarsk.hide();
+                                                },
+                                                failure: function () {
+                                                    alert("操作失败");
+                                                    loadMarsk.hide();
+                                                }
+                                            });
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]//items
+            })//FormPanel
+
+            grid.setHeight(Ext.get("content").getHeight() - 5);
+        });
+    </script>
+</head>
+<body>
+<div id="content" style="width: 100%;height: 100%"></div>
+</body>
+</html>
