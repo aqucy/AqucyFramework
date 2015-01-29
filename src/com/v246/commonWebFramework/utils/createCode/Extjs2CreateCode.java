@@ -23,7 +23,8 @@ import java.util.Map;
  */
 public class Extjs2CreateCode implements  ICreateCode{
     @Override
-    public boolean createCode(String jsonString){
+    public String createCode(String jsonString){
+        String re = null;
         try {
             Map root = new HashMap();
             Map data = new HashMap();
@@ -68,8 +69,8 @@ public class Extjs2CreateCode implements  ICreateCode{
                     if (myjo.has("required")) {
                         columnPojo.setRequired(myjo.path("required").asBoolean());
                     }
-                    if (myjo.has("formType")) {
-                        columnPojo.setFormType(myjo.path("formType").asText());
+                    if (myjo.has("inputType")) {
+                        columnPojo.setInputType(myjo.path("inputType").asText());
                     }
                     if (myjo.has("regErrMsg")) {
                         columnPojo.setRegexErrorMsg(myjo.path("regErrMsg").asText());
@@ -101,9 +102,10 @@ public class Extjs2CreateCode implements  ICreateCode{
             createView(root);
             createJava(root);
         }catch (Exception e){
+            re = "出现异常:"+e.getMessage();
             e.printStackTrace();
         }
-        return false;
+        return re;
     }
 
     private boolean createView(Map root){

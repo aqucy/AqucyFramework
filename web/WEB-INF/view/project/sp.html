@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/gray/easyui.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/color.css"/>
+    <script type="text/javascript" src="/js/easyui/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/locale/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $("#add").click(function(){
+               $('#addDialog').dialog('open');
+            });
+            $("#addSaveButton").click(function(){
+
+            });
+        });
+    </script>
+</head>
+<body>
+<table class="easyui-datagrid" title="Basic DataGrid" style="width:700px;height:250px"
+       data-options="singleSelect:true,collapsible:true,url:'/sp?op=view',method:'get'">
+    <div style="height:30px;" class="datagrid-toolbar">
+	<span style="float:left;">
+
+	<a id="add" href="javascript:" class="easyui-linkbutton" plain="true" icon="add">添加</a>
+	<a id="edit" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-edit">编辑</a>
+
+	</span>
+    </div>
+    <thead>
+    <tr>
+        <th data-options="field:'name',width:80">商品名称D</th>
+        <th data-options="field:'pingPai',width:100">品牌</th>
+        <th data-options="field:'jiaGe',width:80,align:'right'">价格</th>
+        <th data-options="field:'leibie',width:80,align:'right'">累别</th>
+        <th data-options="field:'shuLiang',width:250">数量</th>
+    </tr>
+    </thead>
+</table>
+<div id="addDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+     data-options="closed:true,buttons:'#addDialog-buttons',modal:true,iconCls:'icon-add'">
+    <form id="addForm" action="/systemManager/userManager" method="post">
+        <input type="hidden" name="op" value="add"/>
+        <table style="font-size: 12px;text-align: right">
+            <tr>
+                <td>商品名称:</td>
+                <td class="tdRightPadding"><input name="sp.name"
+                                                  data-options="required:true,validType:{length:[3,15]}"
+                                                  class="easyui-textbox"/></td>
+                <td>品牌:</td>
+                <td class="tdRightPadding"><input name="sp.pingPai" class="f1 easyui-textbox"
+                                                  data-options="required:true,validType:['length[6,18]']"/>
+                </td>
+                <td>价格:</td>
+                <td class="tdRightPadding"><input name="sp.jiaGe" class="f1 easyui-textbox"
+                                                  data-options="required:true,validType:{length:[2,4]}"/></td>
+            </tr>
+            <tr>
+                <td>类别:</td>
+                <td class="tdRightPadding"><input name="sp.leibie" class="f1 easyui-textbox"
+                                                  data-options="required:true,validType:{length:[2,4]}"/>
+                </td>
+                <td>状态:</td>
+                <td class="tdRightPadding"><input name="sp.shuLiang" class="f1 easyui-textbox"
+                                                  data-options="required:true,validType:{length:[2,4]}"/>
+                </td>
+                <td></td>
+                <td class="tdRightPadding"></td>
+            </tr>
+
+        </table>
+    </form>
+    <div id="addDialog-buttons">
+        <a href="javascript:void(0)" class="easyui-linkbutton" id="addSaveButton"
+           data-options="iconCls:'icon-save',plain:true">保存</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:$('#addDialog').dialog('close')">取消</a>
+    </div>
+</div>
+</body>
+</html>

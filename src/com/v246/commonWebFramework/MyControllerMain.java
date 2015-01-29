@@ -8,6 +8,7 @@ import com.jfinal.plugin.ehcache.CacheInterceptor;
 import com.jfinal.plugin.ehcache.CacheName;
 import com.v246.commonWebFramework.dao.DictionaryModel;
 import com.v246.commonWebFramework.dao.MenuModel;
+import com.v246.project.model.sp;
 import net.sf.json.JSONObject;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.UsernamePasswordToken;
@@ -86,16 +87,17 @@ public class MyControllerMain extends Controller {
 	}
 	public void getDict() {
 		String code = getPara("code");
-		Map<Object, Object> jo = new ConcurrentHashMap<Object, Object>();
-		jo.put("success", true);
-		if(StrKit.isBlank(code)) {
-			jo.put("errcode",1105);
-			jo.put("errmsg", "code不能为空");
+		List<DictionaryModel> list = null;
+		list = DictionaryModel.dao.find("SELECT k label,v value FROM acyFramework_dictionary where code=?",code);
+		renderJson(list);
+	}
+	public void sp(){
+		String op = getPara("op");
+		if("view".equalsIgnoreCase(op)){
+			List<sp> list = sp.dao.find("SELECT * FROM shangPin");
+			renderJson(list);
 		}else {
-			List<DictionaryModel> list = DictionaryModel.dao.find("SELECT k label,v value FROM acyFramework_dictionary where code=?",code);
-			jo.put("errcode",0);
-			jo.put("datas", list);
+			render("/WEB-INF/view/project/sp.html");
 		}
-		renderJson(jo);
 	}
 }

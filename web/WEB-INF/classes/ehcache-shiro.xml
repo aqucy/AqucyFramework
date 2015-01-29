@@ -1,0 +1,38 @@
+<ehcache name="shiro">
+
+    <diskStore path="java.io.tmpdir/shiro-ehcache"/>
+
+
+    <defaultCache
+            maxElementsInMemory="1000"
+            eternal="false"
+            timeToIdleSeconds="120"
+            timeToLiveSeconds="120"
+			overflowToDisk="true"
+            diskPersistent="false"
+            diskExpiryThreadIntervalSeconds="120"
+            diskSpoolBufferSizeMB="50"
+            />
+
+        
+    <cache name="myRealm.authorizationCache" 
+           maxElementsInMemory="1000" 
+           overflowToDisk="true" 
+           eternal="true"
+           timeToLiveSeconds="10800" 
+           timeToIdleSeconds="10800" 
+           diskPersistent="true" 
+           diskExpiryThreadIntervalSeconds="600"> 
+    </cache>    
+        
+    <cache name="shiro-activeSessionCache"
+           maxElementsInMemory="2000"
+           eternal="true"
+           timeToLiveSeconds="0"
+           timeToIdleSeconds="0"
+           diskPersistent="true"
+           overflowToDisk="true"
+           diskExpiryThreadIntervalSeconds="600"/>
+</ehcache>
+
+

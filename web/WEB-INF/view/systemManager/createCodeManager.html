@@ -4,230 +4,507 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8">
     <title></title>
-    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/ext-all.css"/>
-    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/xtheme-gray.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/gray/easyui.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/icon.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/color.css"/>
+    <script type="text/javascript" src="/js/easyui/jquery-1.11.2.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/locale/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="/js/acyFramework/easyui_validate_ext.js"></script>
+    <script type="text/javascript" src="/js/acyFramework/aqucy.js"></script>
     <link rel="stylesheet" type="text/css" href="/css/icon.css"/>
-    <script type="text/javascript" src="/js/ext/adapter/ext/ext-base.js"></script>
-    <script type="text/javascript" src="/js/ext/ext-all.js"></script>
-    <script type="text/javascript" src="/js/ext/source/locale/ext-lang-zh_CN.js"></script>
+    <style type="text/css">
+        .tdRightPadding {
+            padding-right: 20px;
+            width: 170px;
+            text-align: left;
+        }
+
+    </style>
     <script type="text/javascript">
-        Ext.onReady(function () {
-            Ext.BLANK_IMAGE_URL = "/js/ext/resources/images/default/s.gif";
-            Ext.QuickTips.init();
-            Ext.form.Field.prototype.msgTarget = "qtip";//side:右侧 under:下方  id: [element id]错误提示显示在指定id的HTML元件中 qtip:鼠标移动到组件时显示
-            var opUrl = "/systemManager/createCodeManager";
-            var delUrl = opUrl;
-            var viewUrl = opUrl;
-            var addurl = opUrl;
-            var editUrl = opUrl;
-            var dictUrl = "/getDict?code=";
-            var loadMarsk = new Ext.LoadMask(document.body, {
-                msg: '正在加载数据，请稍候......',
-                removeMask: true// 完成后移除
-            });
+        $.parser.auto = false;
+        var allDictJson;
+        var haveData = false;
+        $.parser.onComplete = function (context) {
+            $("#Loading").css("display", "none");
+            $.get("/systemManager/createCodeManager?op=getAllDict",
+                    function (data) {
+                        allDictJson = data;
+                    }, 'json');
+        };
+        $(document).ready(function () {
+            var init = true;
+            //提示信息
+            function showMsg(msg) {
+                $.messager.show({
+                    title: '提示',
+                    msg: msg,
+                    showType: 'show'
+                });
+            }
+            function createDataGrid() {
+                var initUrl = '/systemManager/createCodeManager';
+                initUrl = encodeURI(initUrl);
+                $('#dg').datagrid(
+                        {
 
-///////////////////////////Store区///////////////////////////////////
-            var store_grid = new Ext.data.JsonStore({
-                url: viewUrl+'', //后缀名为json的文件
-                totalProperty: "totalCount",
-                root: 'datas',     //读取里面的users对象
-                fields: ['columnName', 'displayName', 'dictCode', 'reg', 'required', 'formType','regErrMsg','allowQuery','formType'] //读取里面的属性
-            });
+                            url: initUrl,
+                            idField: 'id',
+                            title: '学生作业',
+                            fit: true,
+                            fitColumns: true,
+                            pageSize: 10,
+                            pagination: true,
+                            singleSelect: false,
+                            selectOnCheck: true,
+                            sortName: 'id',
+                            pageList: [10, 30, 50, 100],
+                            sortOrder: 'desc',
+                            ctrlSelect: true,
+                            rownumbers: true,
+                            showFooter: true,
+                            frozenColumns: [[]],
+                            columns: [
+                                [
 
-            var store_status = new Ext.data.JsonStore({
-                url: dictUrl+'acyframework_users_status',
-                root: 'datas',
-                fields: ['label', 'value']
-            });
-
-            var store_sex = new Ext.data.JsonStore({
-                url: dictUrl+'acyframework_users_sex',
-                root: 'datas',
-                fields: ['label', 'value']
-            });
-
-
-
-            //定义列,在这里定义每列的宽度
-            var colM = new Ext.grid.ColumnModel([
-                new Ext.grid.RowNumberer(),//增加自动编号，不需要可不必定义
-                {
-                    header: '字段',
-                    dataIndex: 'columnName',
-                    width: 80,
-                    sortable: true
-                },// 生成列，sortable为列排序，不需要设置为false，默认false，renderer为该列增加自定义函数
-                {
-                    header: '显示名称',
-                    dataIndex: 'displayName',
-                    width: 90,
-                    editor:new Ext.form.TextField({
-                        allowBlank: true
-                    })
-                }, // sortable进行排序
-                {
-                    header: '字典编码',
-                    dataIndex: 'dictCode',
-                    width: 50,
-                    editor:new Ext.form.TextField({
-                        allowBlank: true
-                    })
-                },
-                {
-                    header: '正则验证',
-                    dataIndex: 'reg',
-                    width: 70,
-                    editor:new Ext.form.TextField({
-                        allowBlank: true
-                    })
-                },
-                {
-                    header: '验证失败消息',
-                    dataIndex: 'regErrMsg',
-                    width: 70,
-                    editor:new Ext.form.TextField({
-                        allowBlank: true
-                    })
-                },
-                {
-                    header: '必填',
-                    dataIndex: 'required',
-                    width: 70,
-                    editor:new Ext.form.Checkbox({
-                        allowBlank: true
-                    })
-                },
-                {
-                    header: '可查询',
-                    dataIndex: 'allowQuery',
-                    width: 70,
-                    editor:new Ext.form.Checkbox({
-                        allowBlank: true
-                    })
-                },
-                {header: '表单类型', dataIndex: 'formType', width: 170}
-            ]);
-
-            //生成表格
-            var grid = new Ext.grid.EditorGridPanel({
-                loadMask: {
-                    msg: '数据加载中，请稍候...'
-                },
-                cm: colM,
-                clicksToEdit:1,
-                store: store_grid,
-                viewConfig: {
-                    forceFit: true
-                },
-                tbar: []
-            });
-            var viewport = new Ext.Viewport({
-                layout: 'border',
-                autoScroll: true,
-                items: [{
-                    region: 'center',
-                    deferredRender: false,
-                    bodyStyle: "overflow-y:hidden;overflow-x:auto",
-                    items: grid,
-                    autoScroll: true
-                }]
-            });
-//////////////////////查询界面/////////////////////
-            var query_form = new Ext.FormPanel({
-                renderTo: grid.tbar,
-                labelAlign: 'left',
-                buttonAlign: 'right',
-                border: false,
-                frame: true,
-                items: [
-                    {
-                        layout: 'table',
-                        layoutConfig: {
-                            columns: 2
-                        },
-                        border: false,
-                        labelSeparator: ':',
-                        defaults: {
-                            layout: 'form',
-                            labelWidth: 12 * 8,
-                            bodyStyle: 'padding:0 0 0 20',
-                            border: false
-                        },
-                        items: [
-                            {
-                                items: [
                                     {
-                                        xtype: 'field',
-                                        maxlength: 10,
-                                        minLength: 2,
-                                        name: "targetName",
-                                        value:'acyframework_users',
-                                        id:'tableName',
-                                        fieldLabel: '表或视图名称'
-                                    },{
-                                        xtype: 'hidden',
-                                        maxlength: 10,
-                                        minLength: 2,
-                                        name: "op",
-                                        value:'getColumn',
-                                        fieldLabel: '表或视图名称'
-                                    }
-                                ]
-                            }, {
-                                layout: "table",
-                                items: [
+                                        field: 'id',
+                                        title: '主键',
+                                        hidden: false,
+                                        checkbox: true,
+                                        sortable: true,
+                                        width: 120
+                                    },
                                     {
-                                        xtype: "button",
-                                        text: "确定",
-                                        iconCls: "accept",
-                                        handler: function () {
-                                            store_grid.baseParams = query_form.form.getValues();
-                                            store_grid.load();
-                                        }
-                                    },{
-                                        xtype: "button",
-                                        text: "生成代码",
-                                        iconCls: "find",
-                                        handler: function () {
-                                            var arr = store_grid.data.items;
-                                            var json={};
-                                            var jsonArr = new Array();
-                                            for(var i=0;i<arr.length;i++){
-                                                jsonArr.push(arr[i].data)
-                                            }
-                                            json.datas = jsonArr;
-                                            json.tableName = Ext.getCmp("tableName").getValue();
-                                            loadMarsk.show();
-                                            Ext.Ajax.request({
-                                                url: opUrl,
-                                                method:'POST',
-                                                params:{
-                                                    op:'createCode',
-                                                    json:JSON.stringify(json)
-                                                },
-                                                //根据id删除节点
-                                                success: function (request) {
-                                                    loadMarsk.hide();
-                                                },
-                                                failure: function () {
-                                                    alert("操作失败");
-                                                    loadMarsk.hide();
+                                        field: 'columnName',
+                                        title: '字段',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'displayName',
+                                        title: '显示名称',
+                                        sortable: true,
+                                        editor: "text",
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'dictCode',
+                                        title: '字典编码',
+                                        editor: {
+                                            type: "combobox",
+                                            options: {
+                                                valueField: 'value',
+                                                textField: 'label',
+                                                data: allDictJson,
+                                                filter: function (q, row) {
+                                                    var opts = $(this).combobox('options');
+                                                    return row[opts.textField].indexOf(q) != -1;
                                                 }
-                                            });
+                                            }
+
+                                        },
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'validateType',
+                                        title: '验证器',
+                                        editor: {
+                                            type: "combobox",
+                                            options: {
+                                                valueField: 'value',
+                                                textField: 'label',
+                                                data: [{
+                                                    label: '电话号码',
+                                                    value: 'phone'
+                                                }, {
+                                                    label: '身份证',
+                                                    value: 'idcard'
+                                                }, {
+                                                    label: '整数或小数',
+                                                    value: 'intOrFloat'
+                                                }, {
+                                                    label: '货币',
+                                                    value: 'currency'
+                                                }, {
+                                                    label: 'QQ',
+                                                    value: 'qq'
+                                                }, {
+                                                    label: '整数',
+                                                    value: 'integer'
+                                                }, {
+                                                    label: '年龄',
+                                                    value: 'age'
+                                                }, {
+                                                    label: '中文',
+                                                    value: 'chinese'
+                                                }, {
+                                                    label: '英语',
+                                                    value: 'english'
+                                                }, {
+                                                    label: '非法字符',
+                                                    value: 'unnormal'
+                                                }, {
+                                                    label: '用户名',
+                                                    value: 'username'
+                                                }, {
+                                                    label: '传真',
+                                                    value: 'faxno'
+                                                }, {
+                                                    label: '邮政编码',
+                                                    value: 'zip'
+                                                }, {
+                                                    label: 'IP地址',
+                                                    value: 'ip'
+                                                }, {
+                                                    label: '中文或英文',
+                                                    value: 'name'
+                                                }, {
+                                                    label: '日期',
+                                                    value: 'date'
+                                                }, {
+                                                    label: '邮箱',
+                                                    value: 'email'
+                                                }, {
+                                                    label: '手机号码',
+                                                    value: 'mobile'
+                                                }]
+                                            }
+
+                                        },
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'inputType',
+                                        title: '表单类型',
+                                        editor: {
+                                            type: "combobox",
+                                            options: {
+                                                valueField: 'value',
+                                                textField: 'label',
+                                                data: [{
+                                                    label: 'textbox',
+                                                    value: 'textbox'
+                                                }, {
+                                                    label: 'combobox',
+                                                    value: 'combobox'
+                                                }, {
+                                                    label: 'datebox',
+                                                    value: 'datebox'
+                                                }, {
+                                                    label: 'datetimebox',
+                                                    value: 'datetimebox'
+                                                }, {
+                                                    label: 'datetimespinner',
+                                                    value: 'datetimespinner'
+                                                }, {
+                                                    label: 'timespinner',
+                                                    value: 'timespinner'
+                                                }, {
+                                                    label: 'calendar',
+                                                    value: 'calendar'
+                                                }, {
+                                                    label: 'numberspinner',
+                                                    value: 'numberspinner'
+                                                }, {
+                                                    label: 'slider',
+                                                    value: 'slider'
+                                                }, {
+                                                    label: 'filebox',
+                                                    value: 'filebox'
+                                                }, {
+                                                    label: 'numberbox',
+                                                    value: 'numberbox'
+                                                }]
+                                            }
+
+                                        },
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'required',
+                                        title: '必填',
+                                        editor: {
+                                            type: "checkbox",
+                                            options: {
+                                                on: '是',
+                                                off: ''
+                                            }
+                                        },
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'allowDisplay',
+                                        title: '可显示',
+                                        editor: {
+                                            type: "checkbox",
+                                            options: {
+                                                on: '是',
+                                                off: ''
+                                            }
+                                        },
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'allowAdd',
+                                        title: '可增加',
+                                        editor: {
+                                            type: "checkbox",
+                                            options: {
+                                                on: '是',
+                                                off: ''
+                                            }
+                                        },
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'allowEdit',
+                                        title: '可修改',
+                                        editor: {
+                                            type: "checkbox",
+                                            options: {
+                                                on: '是',
+                                                off: ''
+                                            }
+                                        },
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'allowQuery',
+                                        title: '可查询',
+                                        editor: {
+                                            type: "checkbox",
+                                            options: {
+                                                on: '是',
+                                                off: ''
+                                            }
+                                        },
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'opt', title: '操作', width: 200, formatter: function (value, rec, index) {
+                                        if (!rec.id) {
+                                            return '';
                                         }
+                                        var href = "<a href='javascript:' title='删除' onclick='del(" + rec.id + ")'>高级设置</a>";
+                                        return href;
+                                    }
                                     }
                                 ]
-                            }
-                        ]
-                    }
-                ]//items
-            })//FormPanel
+                            ],
+                            onBeforeLoad: function (params) {
+                                if (init) {
+                                    init = false;
+                                    return false;
+                                }
+                            },
+                            onLoadSuccess: function (data) {
+                                $("#dg").datagrid("clearSelections");
+                            },
+                            onClickRow: function (rowIndex, rowData) {
+                                onClickRow(rowIndex);
+                            },
+                            onDblClickRow: function (index, row) {
 
-            grid.setHeight(Ext.get("content").getHeight() - 5);
+                            }
+                        });
+            }
+
+            createDataGrid();
+            var editIndex = undefined;
+
+            function endEditing() {
+                if (editIndex == undefined) {
+                    return true
+                }
+                if ($('#dg').datagrid('validateRow', editIndex)) {
+//                    var ed = $('#dg').datagrid('getEditor', {index:editIndex,field:'productid'});
+//                    $(ed.target).combobox('loadData',allDictJson);
+//                    $('#dg').datagrid('getRows')[editIndex]['productname'] = productname;
+                    $('#dg').datagrid('endEdit', editIndex);
+                    editIndex = undefined;
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            function onClickRow(index) {
+//                console.log($("#dg").datagrid('getData'));
+                if (editIndex != index) {
+                    if (endEditing()) {
+                        $('#dg').datagrid('selectRow', index)
+                                .datagrid('beginEdit', index);
+                        editIndex = index;
+                        var ed = $('#dg').datagrid('getEditor', {index: editIndex, field: 'dictCode'});
+                        $(ed.target).combobox('loadData', allDictJson);
+                    } else {
+                        $('#dg').datagrid('selectRow', editIndex);
+                    }
+                }
+            }
+
+            $("#okButton").click(function () {
+                var tn = $("#tableName").val();
+                if (tn == null || tn == "" || tn == undefined) {
+                    alert("请添写表名");
+                    return;
+                }
+                var ok = false;
+                if (haveData) {
+                    $.messager.confirm('表格内已有数据', '确定删除这些数据么??', function (r) {
+                        if (r) {
+                            $("#op").val("getColumn");
+                            $("#dg").datagrid("load", $("#searchForm").serializeJson());
+                        }
+                    })
+                }else{
+                    $("#op").val("getColumn");
+                    $("#dg").datagrid("load", $("#searchForm").serializeJson());
+                }
+                haveData = true;
+            });
+            $("#createButton").click(function () {
+                var tn = $("#tableName").val();
+                if (tn == null || tn == "" || tn == undefined) {
+                    alert("请添写表名");
+                    return;
+                }
+                var alias = $("#alias").val();
+                if (alias == null || alias == "" || alias == undefined) {
+                    alert("请添写别名");
+                    return;
+                }
+                var json = {};
+                json.datas = $('#dg').datagrid("getData").rows;
+                json.tableName = tn;
+                json.alias = alias;
+                json.reCreate = "yes";
+                $.ajax({
+                    type: 'POST',
+                    url: "/systemManager/createCodeManager",
+                    data: {
+                        op: "createCode",
+                        tableName: tn,
+                        alias: alias,
+                        json: JSON.stringify(json)
+                    },
+                    success: function (data) {
+                        if (data.errcode > 0) {
+                            alert(data.errmsg);
+                        }else{
+                            showMsg("操作成功!")
+                        }
+                    },
+                    dataType: "json"
+                });
+            });
+            $("#advButton").click(function(){
+                $("#advDialog").dialog('open').dialog('setTitle', '高级设置');
+            });
+            setTimeout(function () {
+                $.parser.parse();
+            }, 1000);
         });
+
     </script>
 </head>
 <body>
-<div id="content" style="width: 100%;height: 100%"></div>
+<div id='Loading'
+     style="position:absolute;z-index:1000;top:0px;left:0px;width:100%;height:100%;background:#DDDDDB;text-align:center;padding-top: 20%;">
+    <h1><img src="/js/easyui/themes/gray/images/loading.gif"><font color="#15428B">加载中···</font></h1></div>
+<table width="100%" id="dg" toolbar="#dg_tb"></table>
+<div id="dg_tb" style="padding:3px; height: auto">
+    <div name="searchPanel">
+
+        <form id="searchForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" id="op" name="op" value=""/>
+            <input type="hidden" name="target" value="easyui"/>
+            <table style="font-size: 12px;text-align: right">
+                <tr>
+                    <td>表名:</td>
+                    <td class="tdRightPadding"><input id="tableName" name="tableName" value="acyframework_users"
+                                                      data-options="validType:{length:[3,255]}"
+                                                      class="f1 easyui-textbox"/></td>
+                    <td>别名:</td>
+                    <td class="tdRightPadding"><input id="alias" name="alias" class="f1 easyui-textbox"
+                                                      data-options="validType:['length[3,255]']"/>
+                    </td>
+                    <td class="tdRightPadding" width="200px">
+                        <a href="javascript:" id="okButton" class="easyui-linkbutton" icon="accept">确定</a>
+                        <a href="javascript:" id="createButton" class="easyui-linkbutton" icon="erase">生成</a>
+                    </td>
+                    <td class="tdRightPadding" width="200px">
+                        <a href="javascript:" id="advButton" class="easyui-linkbutton" icon="erase">高级设置</a>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+</div>
+<div id="advDialog" class="easyui-layout easyui-dialog" style="width: 100%; height: 100%;"
+     data-options="closed:true,buttons:'#advDialog-buttons',modal:true,iconCls:'icon-add'">
+    <form id="addForm" action="/systemManager/userManager" method="post">
+        <div data-options="region:'west',title:'菜单栏',split:true" style="width:170px;">
+            <ul id="tree" class="easyui-tree">
+                <li>
+                    <span>My Documents</span>
+                    <ul>
+                        <li data-options="state:'closed'">
+                            <span>Photos</span>
+                            <ul>
+                                <li>
+                                    <span>Friend</span>
+                                </li>
+                                <li>
+                                    <span>Wife</span>
+                                </li>
+                                <li>
+                                    <span>Company</span>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <span>Program Files</span>
+                            <ul>
+                                <li>Intel</li>
+                                <li>Java</li>
+                                <li>Microsoft Office</li>
+                                <li>Games</li>
+                            </ul>
+                        </li>
+                        <li>index.html</li>
+                        <li>about.html</li>
+                        <li>welcome.html</li>
+                    </ul>
+                </li>
+            </ul>
+
+        </div>
+        <div id="tt" data-options="region:'center',title:''"  class="easyui-tabs" style="padding:5px;background:#eee;">
+
+            <div title="首页" style="padding:20px;display:none;">
+                tab1
+            </div>
+        </div>
+    </form>
+    <div id="advDialog-buttons">
+        <a href="javascript:void(0)" class="easyui-linkbutton" id="addSaveButton"
+           data-options="iconCls:'icon-save',plain:true">保存</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:$('#advDialog').dialog('close')">取消</a>
+    </div>
+</div>
 </body>
 </html>

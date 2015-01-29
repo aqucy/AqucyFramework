@@ -4,28 +4,38 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8">
     <title></title>
-    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/ext-all.css"/>
-    <link rel="stylesheet" type="text/css" href="/js/ext/resources/css/xtheme-gray.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/gray/easyui.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/icon.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/color.css"/>
+    <script type="text/javascript" src="/js/easyui/jquery-1.11.2.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/locale/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="/js/acyFramework/easyui_validate_ext.js"></script>
+    <script type="text/javascript" src="/js/acyFramework/aqucy.js"></script>
     <link rel="stylesheet" type="text/css" href="/css/icon.css"/>
-    <script type="text/javascript" src="/js/ext/adapter/ext/ext-base.js"></script>
-    <script type="text/javascript" src="/js/ext/ext-all.js"></script>
-    <script type="text/javascript" src="/js/ext/source/locale/ext-lang-zh_CN.js"></script>
+    <style type="text/css">
+        .tdRightPadding {
+            padding-right: 20px;
+            width: 170px;
+            text-align: left;
+        }
+
+    </style>
     <script type="text/javascript">
-        Ext.onReady(function () {
-            Ext.BLANK_IMAGE_URL = "/js/ext/resources/images/default/s.gif";
-            Ext.QuickTips.init();
-            Ext.form.Field.prototype.msgTarget = "qtip";//side:右侧 under:下方  id: [element id]错误提示显示在指定id的HTML元件中 qtip:鼠标移动到组件时显示
-            var opUrl = "/systemManager/userManager";
-            var delUrl = opUrl;
-            var viewUrl = opUrl;
-            var addurl = opUrl;
-            var editUrl = opUrl;
-            var dictUrl = "/getDict?code=";
-            var loadMarsk = new Ext.LoadMask(document.body, {
-                msg: '正在加载数据，请稍候......',
-                removeMask: true// 完成后移除
-            });
-/////////////////////////字典匹配////////////////////////////////////////////////////
+        $.parser.auto = false;
+        var del, subDel;
+        var init = true;
+        function showCombboxData(itemId,code){
+           var data = $("#"+itemId).combobox("getData");
+            if(data==null||data==""){
+                $("#"+itemId).combobox("reload","/getDict?code="+code);
+            }
+        }
+        $.parser.onComplete = function (context) {
+            $("#Loading").css("display","none");
+        };
+        $(document).ready(function () {
+            /////////////////////////字典匹配////////////////////////////////////////////////////
             function renderSex(value) {
                 if (value == '1') {
                     return "男";
@@ -43,748 +53,1183 @@
                     return "已注销";
                 }
             }
-
-///////////////////////////Store区///////////////////////////////////
-            var store_grid = new Ext.data.JsonStore({
-                url: viewUrl+'?op=view', //后缀名为json的文件
-                totalProperty: "totalCount",
-                root: 'datas',     //读取里面的users对象
-                fields: ['username', 'userRealName', 'sex', 'status', 'password', 'QQ', 'mail', 'mobile', 'phone', 'create_time',] //读取里面的属性
-            });
-
-            var store_status = new Ext.data.JsonStore({
-                url: dictUrl+'acyframework_users_status',
-                root: 'datas',
-                fields: ['label', 'value']
-            });
-
-            var store_sex = new Ext.data.JsonStore({
-                url: dictUrl+'acyframework_users_sex',
-                root: 'datas',
-                fields: ['label', 'value']
-            });
-
-
-            //定义勾选框，不需要可不必定义
-            var sm = new Ext.grid.CheckboxSelectionModel();
-            //定义列,在这里定义每列的宽度
-            var colM = new Ext.grid.ColumnModel([
-                new Ext.grid.RowNumberer(),//增加自动编号，不需要可不必定义
-                sm,//勾选框，不需要可不必定义
-                {header: '登录名', dataIndex: 'username', width: 170, sortable: true},// 生成列，sortable为列排序，不需要设置为false，默认false，renderer为该列增加自定义函数
-                {header: '姓名', dataIndex: 'userRealName', width: 90}, // sortable进行排序
-                {header: '性别', dataIndex: 'sex', width: 50, renderer: renderSex},
-                {header: '状态', dataIndex: 'status', width: 70, renderer: renderStatus},
-                {header: '创建时间', dataIndex: 'create_time', width: 170},
-                {header: '手机', dataIndex: 'mobile', width: 170},
-                {header: '固话', dataIndex: 'phone', width: 170},
-                {header: '邮箱', dataIndex: 'mail', width: 170},
-                {header: 'QQ', dataIndex: 'QQ', width: 170},
-                {header: '最后登录', dataIndex: 'lastLoginDate', width: 170}
-            ]);
-
-            //生成表格
-            var grid = new Ext.grid.GridPanel({
-                loadMask: {
-                    msg: '数据加载中，请稍候...'
-                },
-                cm: colM,
-                sm: sm,
-                store: store_grid,
-                viewConfig: {
-                    forceFit: true
-                },
-                tbar: [
-                    {
-                        text: "添加",
-                        iconCls: "add",
-                        handler: function (e) {
-                            add();
-                        }
-                    },
-                    {
-                        text: "修改",
-                        iconCls: "pageedit",
-                        handler: function (e) {
-                            edit();
-                        }
-                    },
-                    {
-                        text: "删除",
-                        iconCls: "delete",
-                        handler:function(e){
-                            del();
-                        }
-                    },
-                    {
-                        text: "刷新",
-                        iconCls: "arrowrefresh",
-                        handler:function(e){
-                            store_grid.reload();
-                        }
-                    }
-                ],
-                bbar: new Ext.PagingToolbar({
-                    pageSize: 3,
-                    store: store_grid,
-                    displayInfo: true,
-                    displayMsg: '显示第{0}条到{1}条记录,一共{2}条',
-                    emptyMsg: '没有记录'
-                })
-            });
-            grid.on("rowdblclick", function (datagrid, row) {
-                edit();
-            });
-            grid.on("rowcontextmenu", function (grid, rowIndex, e) {
-                if (rowIndex < 0) {
-                    return;
-                }
-                e.preventDefault();
-                var allowEdit = true;
-                var selArr = grid.getSelectionModel().getSelections();
-                if (selArr.length <= 1) {
-                    //选中行
-                    grid.getSelectionModel().selectRow(rowIndex,false);
-                } else if (selArr.length > 1) {
-                    allowEdit = false;
-                }
-
-                var menus = new Ext.menu.Menu
-                ({
-                    items: [
+                function createDataGrid() {
+                var initUrl = '/systemManager/userManager?op=view';
+                initUrl = encodeURI(initUrl);
+                $('#dg').datagrid(
                         {
-                            text: "添加",
-                            pressed: true,
-                            iconCls: "add",
-                            handler: function () {
-                                add();
-                                menus.destroy();
-                            }
-                        },
-                        {
-                            text: "编辑",
-                            pressed: true,
-                            disabled:!allowEdit,
-                            iconCls: "pageedit",
-                            handler: function () {
-                                edit();
-                                menus.destroy();
-                            }
-                        },
-                        {
-                            text: "删除",
-                            pressed: true,
-                            iconCls: "delete",
-                            handler: function () {
-                                del();
-                                menus.destroy();
-                            }
-                        },
-                        {
-                            text: "刷新",
-                            pressed: true,
-                            iconCls: "arrowrefresh",
-                            handler: function () {
-                                store_grid.reload();
-                            }
-                        }
-                    ]
-                });
-                menus.showAt(e.getPoint());
-            });
-            var viewport = new Ext.Viewport({
-                layout: 'border',
-                autoScroll: true,
-                items: [{
-                    region: 'center',
-                    deferredRender: false,
-                    bodyStyle: "overflow-y:hidden;overflow-x:auto",
-                    items: grid,
-                    autoScroll: true
-                }]
-            });
-//////////////////////查询界面/////////////////////
-            var query_form = new Ext.FormPanel({
-                renderTo: grid.tbar,
-                labelAlign: 'left',
-                buttonAlign: 'right',
-                border: false,
-                frame: true,
-                items: [
-                    {
-                        layout: 'table',
-                        layoutConfig: {
-                            columns: 4
-                        },
-                        border: false,
-                        labelSeparator: ':',
-                        defaults: {
-                            layout: 'form',
-                            labelWidth: 12 * 5,
-                            bodyStyle: 'padding:0 0 0 20',
-                            border: false
-                        },
-                        items: [
-                            {
-                                items: [
+
+                            url: initUrl,
+                            idField: 'id',
+                            title: '学生作业',
+                            fit: true,
+                            fitColumns: true,
+                            pageSize: 10,
+                            pagination: true,
+                            singleSelect: false,
+                            selectOnCheck: true,
+                            sortName: 'id',
+                            pageList: [10, 30, 50, 100,300,500,800,1000],
+                            sortOrder: 'desc',
+                            ctrlSelect: true,
+                            rownumbers: true,
+                            showFooter: true,
+                            frozenColumns: [[]],
+                            columns: [
+                                [
+
                                     {
-                                        xtype: 'field',
-                                        maxlength: 10,
-                                        minLength: 2,
-                                        name: "user.userRealName",
-                                        fieldLabel: '姓名'
+                                        field: 'id',
+                                        title: '主键',
+                                        hidden: false,
+                                        checkbox: true,
+                                        sortable: true,
+                                        width: 120
                                     },
                                     {
-                                        xtype: 'hidden',
-                                        name: "op",
-                                        value: "view",
-                                        fieldLabel: 'op'
-                                    }
-                                ]
-                            }, {
-                                items: [
+                                        field: 'username',
+                                        title: '登录名',
+                                        sortable: true,
+                                        width: 120
+                                    },
                                     {
-                                        xtype: "combo",
-                                        fieldLabel: "状态",
-                                        hiddenName: "user.status",
-                                        name: "status",
-                                        valueField: "value",
-                                        displayField: "label",
-                                        selectOnFocus: true,
-                                        emptyText: "请选择...",
-                                        mode: 'remote',
-                                        forceSelection: true,
-                                        triggerAction: 'all',
-                                        width: 70,
-                                        store: store_status,
-                                        listeners: {
-                                            select: function (combo, record, index) {
-
-                                            },
-                                            render: function (comb, record, index) {
-
-                                            }
-                                        }
-                                    }
-                                ]
-                            }, {
-                                items: [{
-                                    xtype: "combo",
-                                    fieldLabel: "性别",
-                                    name: "sex",
-                                    hiddenName: "user.sex",
-                                    blankText: "不能为空，请填写",
-                                    valueField: "value",
-                                    displayField: "label",
-                                    emptyText: "请选择...",
-                                    mode: 'remote',
-                                    forceSelection: true,
-                                    triggerAction: 'all',
-                                    width: 70,
-                                    store: store_sex,
-                                    listeners: {
-                                        select: function (combo, record, index) {
-
-                                        },
-                                        render: function (comb, record, index) {
-
-                                        }
-                                    }
-                                }]
-                            }, {
-                                items: [
+                                        field: 'userRealName',
+                                        title: '姓名',
+                                        sortable: true,
+                                        width: 120
+                                    },
                                     {
-                                        xtype: 'field',
-                                        maxlength: 15,
-                                        minLength: 5,
-                                        name: "user.QQ",
-                                        fieldLabel: 'QQ号码'
-                                    }
-                                ]
-                            }, {
-                                items: [
+                                        field: 'sex',
+                                        title: '性别',
+                                        hidden: false,
+                                        formatter: renderSex,
+                                        sortable: true,
+                                        width: 120
+                                    },
                                     {
-                                        xtype: 'field',
-                                        maxlength: 255,
-                                        minLength: 2,
-                                        name: "user.address",
-                                        fieldLabel: '地址'
-                                    }
-                                ]
-                            }, {
-                                layout: "table",
-                                items: [
+                                        field: 'status',
+                                        title: '状态',
+                                        formatter: renderStatus,
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
                                     {
-                                        xtype: "button",
-                                        text: "查询",
-                                        iconCls: "find",
-                                        handler: function () {
-                                            //表单提交
-                                            query(query_form);
+                                        field: 'create_time',
+                                        title: '创建时间',
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'mobile',
+                                        title: '手机',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'phone',
+                                        title: '固话',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'mail',
+                                        title: '邮箱',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'QQ',
+                                        title: 'QQ',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'opt', title: '操作', width: 200, formatter: function (value, rec, index) {
+                                        if (!rec.id) {
+                                            return '';
                                         }
-                                    }, {
-                                        xtype: "button",
-                                        text: "重置",
-                                        iconCls: "erase",
-                                        handler: function () {
-                                            //表单提交
-                                            query_form.form.reset();
-                                            query(query_form);
-                                        }
+                                        var href = "<a href='javascript:' title='删除' onclick='del(" + rec.id + ")'><img src='/icons/delete.png'/></a>";
+                                        return href;
+                                    }
                                     }
                                 ]
+                            ],
+                            onLoadSuccess: function (data) {
+                                $("#dg").datagrid("clearSelections");
+                            },
+                            onClickRow: function (rowIndex, rowData) {
+                                rowid = rowData.id;
+                                gridname = 'dg';
+                            },
+                            onDblClickRow:function(index,row){
+                                view();
                             }
-                        ]
+                        });
+            }
+
+            function createSubDataGrid(pvalue) {
+                var initUrl = '/project/addasShop?op=view&addasShop.managerUserId=' + pvalue;
+                initUrl = encodeURI(initUrl);
+                $('#subdg').datagrid(
+                        {
+
+                            url: initUrl,
+                            idField: 'id',
+                            title: '学生作业',
+                            fit: true,
+                            fitColumns: true,
+                            pageSize: 10,
+                            pagination: true,
+                            singleSelect: false,
+                            selectOnCheck: true,
+                            sortName: 'id',
+                            pageList: [10, 30, 50, 100],
+                            sortOrder: 'desc',
+                            ctrlSelect: true,
+                            rownumbers: true,
+                            showFooter: true,
+                            frozenColumns: [[]],
+                            columns: [
+                                [
+
+                                    {
+                                        field: 'id',
+                                        title: '主键',
+                                        hidden: false,
+                                        checkbox: true,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'shopName',
+                                        title: '店铺名称',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'openDate',
+                                        title: '营业时间',
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'status',
+                                        title: '状态',
+                                        formatter: renderStatus,
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'age',
+                                        title: '店龄',
+                                        hidden: false,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'address',
+                                        title: '店铺地址',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'opt', title: '操作', width: 200, formatter: function (value, rec, index) {
+                                        if (!rec.id) {
+                                            return '';
+                                        }
+                                        var href = "<a href='javascript:' title='删除' onclick='subDel(" + rec.id + ")'><img src='/icons/delete.png'/></a>";
+                                        return href;
+                                    }
+                                    }
+                                ]
+                            ],
+                            onLoadSuccess: function (data) {
+                                $("sub#dg").datagrid("clearSelections");
+                            },
+                            onClickRow: function (rowIndex, rowData) {
+                                rowid = rowData.id;
+                                gridname = 'subdg';
+                            },
+                            onDblClickRow:function(index,row){
+                                $("#subView").trigger("click");
+                            }
+                        });
+            }
+
+            function createPopDataGrid(code,callback) {
+                var url = "/systemManager/userManager?op=popGrid&popGridCode="+code;
+                var init = true;
+                $('#popdg').datagrid(
+                        {
+                            url:url,
+                            idField: 'id',
+                            fit: true,
+                            fitColumns: true,
+                            pageSize: 10,
+                            callback:callback,
+                            pagination: true,
+                            singleSelect: false,
+                            selectOnCheck: true,
+//                            sortName: 'id',
+                            pageList: [10, 30, 50, 100],
+//                            sortOrder: 'desc',
+                            ctrlSelect: true,
+                            rownumbers: true,
+                            showFooter: true,
+                            frozenColumns: [[]],
+                            onLoadSuccess: function (data) {
+                                if(init){
+                                    init = false;
+                                }else if(data.datas){
+                                    $("#popdg").datagrid("loadData", data.datas);
+                                }
+                                $("#popdg").datagrid("clearSelections");
+                            },
+                            onClickRow: function (rowIndex, rowData) {
+                                rowid = rowData.id;
+                                gridname = 'popdg';
+                            },
+                            onBeforeLoad:function(params){
+                                if(init){
+                                    return false;
+                                }
+                            },
+                            onDblClickRow:function(index,row){
+                                popdgSelOk();
+                            }
+                        });
+            }
+
+            createDataGrid();
+            //提示信息
+            function showMsg(msg) {
+                $.messager.show({
+                    title: '提示',
+                    msg: msg,
+                    showType: 'show'
+                });
+            }
+
+            function getDataGridSelectedRow() {
+                var row = $('#dg').datagrid('getSelected');
+                return row;
+            }
+
+            //获取表格选中行的指定列(单选)
+            function getDataGridSelectedData(field) {
+                var row = $('#dg').datagrid('getSelected');
+                if (row != null) {
+                    value = row[field];
+                } else {
+                    value = '';
+                }
+                return value;
+            }
+
+            //获取表格选中行的指定列(多选)
+            function getDataGridSelectedDatas(field) {
+                var ids = '';
+                var rows = $('#dg').datagrid('getSelections');
+                for (var i = 0; i < rows.length; i++) {
+                    ids += rows[i][field];
+                    ids += ',';
+                }
+                ids = ids.substring(0, ids.length - 1);
+                return ids;
+            }
+
+            function action(fm, op) {
+                $.messager.progress({
+                    title: '请稍后',
+                    msg: '操作进行中...'
+                });
+                fm.form('submit', {
+                    url: "/systemManager/userManager",
+                    onSubmit: function () {
+                        var isValid = $(this).form('validate');
+                        if (!isValid) {
+                            $.messager.progress('close');	// hide progress bar while the form is invalid
+                        }
+                        return isValid;	// return false will stop the form submission
+                    },
+                    success: function (e) {
+                        var json = $.parseJSON(e);
+                        if (json.errcode != 0) {
+                            $.messager.alert("错误", json.errmsg, "error");
+                        } else {
+                            showMsg("操作成功");
+                            if (op == "add") {
+                                $('#addDialog').dialog('close');
+                            } else if (op == "edit") {
+                                $('#editDialog').dialog('close')
+                            }
+                            refresh();
+                        }
+                        $.messager.progress('close');	// hide progress bar while submit successfully
                     }
-                ]//items
-            })//FormPanel
-
-            grid.setHeight(Ext.get("content").getHeight() - 5);
-            store_grid.load();
-
-//////////////////////编辑界面//////////////////////////////////////////
-            function edit() {
-                var selArr = grid.getSelectionModel().getSelections();
-                if (selArr.length < 1) {
-                    Ext.MessageBox.alert("", "请选择要编辑或修改的数据行!");
-                    return;
-                } else if (selArr.length > 1) {
-                    Ext.MessageBox.alert("", "编辑或修改数据的时候不能多选!");
-                    return;
-                }
-                json = selArr[0].json;
-                var p = new Ext.FormPanel
-                ({
-                    frame: true, labelWidth: 12 * 5,
-                    items: [
-                        {
-                            xtype: "hidden",
-                            id: "id",
-                            name: "user.id",
-                            width: 201,
-                            value: json.id
-                        },
-                        {
-                            xtype: "hidden",
-                            id: "op",
-                            name: "op",
-                            width: 201,
-                            value: "edit"
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "登录ID",
-                            id: "username",
-                            name: "user.username",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            value: json.username,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "密码",
-                            id: "password",
-                            name: "user.password",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            value: json.password,
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "状态",
-                            id: "status",
-                            hiddenName: "user.status",
-                            name: "status",
-                            allowBlank: false,
-                            valueField: "value",
-                            displayField: "label",
-                            selectOnFocus: true,
-                            mode: 'remote',
-                            forceSelection: true,
-                            emptyText: "请选择...",
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_status,
-                            listeners: {
-                                select: function (combo, record, index) {
-
-                                },
-                                render: function (comb, record, index) {
-
-                                }
-                            }
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "姓名",
-                            id: "userRealName",
-                            name: "user.userRealName",
-                            allowBlank: false,
-                            minLength: 2,
-                            maxlength: 5,
-                            value: json.userRealName,
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "性别",
-                            id: "sex",
-                            name: "sex",
-                            hiddenName: "user.sex",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            valueField: "value",
-                            displayField: "label",
-                            mode: 'remote',
-                            forceSelection: true,
-                            emptyText: "请选择...",
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_sex,
-                            listeners: {
-                                select: function (combo, record, index) {
-
-                                },
-                                render: function (comb, record, index) {
-
-                                }
-                            }
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "手机",
-                            id: "mobile",
-                            name: "user.mobile",
-                            value: json.mobile,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "固定电话",
-                            id: "phone",
-                            name: "user.phone",
-                            value: json.phone,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "地址",
-                            id: "address",
-                            name: "user.address",
-                            value: json.address,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "QQ号码",
-                            id: "QQ",
-                            name: "user.QQ",
-                            value: json.QQ,
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "邮箱地址",
-                            id: "mail",
-                            name: "user.mail",
-                            value: json.mail,
-                            width: 201
-                        }
-                    ]
                 });
-                store_sex.on("load", function () {
-                    comb = Ext.getCmp("sex");
-                    comb.setValue(json.sex);
-                });
-                store_status.on("load", function () {
-                    comb = Ext.getCmp("status");
-                    comb.setValue(json.status);
-                });
-                store_status.load();
-                store_sex.load();
-                var win = new Ext.Window
-                ({
-                    title: "编辑窗口",
-                    autoHeight: true,
-                    width: 300,
-                    resizable: false,
-                    buttonAlign: "center",
-                    modal: true,//height:300,
-                    items: [p],
-                    bbar: [
-                        {
-                            xtype: "button",
-                            text: "确定",
-                            iconCls: "accept",
-                            handler: function () {
-                                //表单提交
-                                save(p, win,"edit");
-                            }
-                        },
-                        '', '',
-                        {
-                            xtype: "button",
-                            text: "关闭",
-                            iconCls: "cancel",
-                            handler: function () {
-                                win.destroy();
-                            }
-                        }
-                    ]
-                });
-                win.show();
             }
 
-//////////////////////添加界面//////////////////////////////////////////
+            //添加
             function add() {
-                var p = new Ext.FormPanel
-                ({
-                    frame: true,
-                    labelWidth: 12 * 5,
-                    items: [
-                        {
-                            xtype: "hidden",
-                            id: "op",
-                            name: "op",
-                            width: 201,
-                            value: "add"
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "登录ID",
-                            id: "username",
-                            name: "user.username",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "密码",
-                            id: "password",
-                            name: "user.password",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "状态",
-                            id: "status",
-                            hiddenName: "user.status",
-                            name: "status",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            valueField: "value",
-                            displayField: "label",
-                            emptyText: "请选择...",
-                            mode: 'remote',
-                            forceSelection: true,
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_status
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "姓名",
-                            id: "userRealName",
-                            name: "user.userRealName",
-                            allowBlank: false,
-                            minLength: 2,
-                            maxlength: 5,
-                            width: 201
-                        },
-                        {
-                            xtype: "combo",
-                            fieldLabel: "性别",
-                            id: "sex",
-                            name: "sex",
-                            hiddenName: "user.sex",
-                            allowBlank: false,
-                            blankText: "不能为空，请填写",
-                            valueField: "value",
-                            displayField: "label",
-                            emptyText: "请选择...",
-                            mode: 'remote',
-                            forceSelection: true,
-                            triggerAction: 'all',
-                            width: 70,
-                            store: store_sex
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "手机",
-                            id: "mobile",
-                            name: "user.mobile",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "固定电话",
-                            id: "phone",
-                            name: "user.phone",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "地址",
-                            id: "address",
-                            name: "user.address",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "QQ号码",
-                            id: "QQ",
-                            name: "user.QQ",
-                            width: 201
-                        },
-                        {
-                            xtype: "textfield",
-                            fieldLabel: "邮箱地址",
-                            id: "mail",
-                            name: "user.mail",
-                            width: 201
-                        }
-                    ]
-                });
-
-                var win = new Ext.Window
-                ({
-                    title: "新增窗口",
-                    autoHeight: true,
-                    width: 300,
-                    resizable: false,
-                    buttonAlign: "center",
-                    modal: true,//height:300,
-                    items: [p],
-                    bbar: [
-                        {
-                            xtype: "button",
-                            text: "确定",
-                            iconCls: "accept",
-                            handler: function () {
-                                //表单提交
-                                save(p, win,"add");
-                            }
-                        },
-                        '', '',
-                        {
-                            xtype: "button",
-                            text: "关闭",
-                            iconCls: "cancel",
-                            handler: function () {
-                                win.destroy();
-                            }
-                        }
-                    ]
-                });
-                win.show();
+                $('#addForm').form('reset');
+                $('#addDialog').dialog('open').dialog('setTitle', '添加');
             }
 
-            function save(aquForm, aquWin,op) {
-                //验证合法后使用加载进度条
-                if (aquForm.form.isValid()) {
-                    //提交到服务器操作
-                    aquForm.form.submit({
-                        waitMsg: '操作进行中,请稍后...',
-                        url: op=="edit"?editUrl:addurl,
-                        method: 'post',
-                        //提交成功的回调函数
-                        success: function (form, action) {
-                            if (action.result.errcode == 0) {
-                                store_grid.reload();
-                                aquWin.destroy();
-                            } else {
-                                Ext.Msg.alert("", action.result.errmsg);
-                            }
-                        },
-                        //提交失败的回调函数
-                        failure: function (form, action) {
-                            switch (action.failureType) {
-                                case Ext.form.Action.CLIENT_INVALID:
-                                    Ext.Msg.alert('错误提示', '表单数据非法请核实后重新输入！');
-                                    break;
-                                case Ext.form.Action.CONNECT_FAILURE:
-                                    Ext.Msg.alert('错误提示', '网络连接异常！');
-                                    break;
-                                case Ext.form.Action.SERVER_INVALID:
-                                    Ext.Msg.alert('错误提示', "您的输入用户信息有误，请核实后重新输入！");
-                                    simple.form.reset();
-                            }
-                        }
-                    });
+            $("#add").click(function () {
+                add();
+            });
+            //编辑
+            function edit() {
+                var row = getDataGridSelectedRow();
+                if (!row || row == undefined || row == null) {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                    return;
                 }
-            };
-            function query(aquForm) {
-                //验证合法后使用加载进度条
-                if (aquForm.form.isValid()) {
-                    //提交到服务器操作
-                    store_grid.baseParams = query_form.form.getValues();
-                    aquForm.form.submit({
-                        waitMsg: '操作进行中,请稍后...',
-                        url: viewUrl,
-                        method: 'post',
-                        //提交成功的回调函数
-                        success: function (form, action) {
-                            if (action.result.errcode == 0) {
-                                store_grid.loadData(action.result);
-                            } else {
-                                Ext.Msg.alert("", action.result.errmsg);
-                            }
-                        },
-                        //提交失败的回调函数
-                        failure: function (form, action) {
-                            switch (action.failureType) {
-                                case Ext.form.Action.CLIENT_INVALID:
-                                    Ext.Msg.alert('错误提示', '表单数据非法请核实后重新输入！');
-                                    break;
-                                case Ext.form.Action.CONNECT_FAILURE:
-                                    Ext.Msg.alert('错误提示', '网络连接异常！');
-                                    break;
-                                case Ext.form.Action.SERVER_INVALID:
-                                    Ext.Msg.alert('错误提示', "您的输入用户信息有误，请核实后重新输入！");
-                            }
-                        }
-                    });
+                $('#editForm').form('reset');
+                var json = {};
+                for (var k in row) {
+                    $(json).attr("user." + k, row[k]);
                 }
-            };
-            function del(){
-                var selModel = grid.getSelectionModel();
-                if (selModel.hasSelection()) {
-                    Ext.Msg.confirm("警告", "确定要删除吗？", function (button) {
-                        if (button == "yes") {
-                            var selected = grid.getSelectionModel().getSelections();
-                            var ids = []; //要删除的id
-                            Ext.each(selected, function (item) {
-                                ids.push(item.json.id);
+                $(json).attr("op", "edit");
+
+                $('#editForm').form('load', json);
+                $('#editDialog').dialog('open').dialog('setTitle', '编辑');
+            }
+
+            //编辑
+            $("#edit").click(function () {
+                edit();
+            });
+            //查看
+            function view(field) {
+                var row = getDataGridSelectedRow();
+                if (!row || row == undefined || row == null) {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                    return;
+                }
+                for (var k in row) {
+                    var str = row[k] ? row[k] : "";
+                    if (k == "") {
+
+                    } else if (k == "sex") {
+                        str = renderSex(str);
+                    } else if (k == "status") {
+                        str = renderStatus(str);
+                    }
+                    $("#view_" + k).text(str);
+                }
+                $('#viewDialog').dialog('open').dialog('setTitle', '查看');
+                var subdgdiv = $("#subdgdiv");
+                var subtable = $("#subtable");
+                var viewdlg = $('#viewDialog');
+                var h = viewdlg.height() - subtable.height() - 75;
+                if (h < 500) {
+                    h = 500;
+                }
+                subdgdiv.height(h);
+                var fieldValue = row[field];
+                createSubDataGrid(fieldValue);
+            }
+
+            //查看
+            $("#view").click(function () {
+                view();
+
+            });
+            //保存
+            $("#addSaveButton").click(function () {
+                action($("#addForm"), "add");
+            });
+            //保存
+            $("#editSaveButton").click(function () {
+                action($("#editForm"), "edit");
+            });
+            //查询
+            $("#searchButton").click(function () {
+                $("#dg").datagrid("load", $("#searchForm").serializeJson());
+            });
+            //刷新
+            function refresh() {
+                $("#dg").datagrid("load", $("#searchForm").serializeJson());
+            }
+            //弹出选择
+            function popGrid(code,callback){
+                $('#popGrid').css("display","none");
+                var json = {};
+                $(json).attr("popGridCode", code);
+                $('#popGridSearchForm').form('load', json);
+                $('#popGrid').dialog('open').dialog('setTitle', '查看');
+                var url = "/systemManager/userManager?op=popGrid&popGridCode="+code;
+                $.get(url,
+                        function (data) {
+                            createPopDataGrid(code,callback);
+                            $("#popdg").datagrid({
+                                columns: [data.columns]
                             });
-                            loadMarsk.show();
-                            Ext.Ajax.request({
-                                url: delUrl+'?op=delete&ids=' + ids,
-                                //根据id删除节点
-                                success: function (request) {
-                                    store_grid.reload();
-                                    loadMarsk.hide();
-                                },
-                                failure: function () {
-                                    alert("删除失败");
-                                    loadMarsk.hide();
+                            $("#popdg").datagrid("loadData", data.datas);
+                            $('#popGrid').css("display","");
+                        }, 'json');
+            }
+            //弹出选择_查询
+            $("#popSearchButton").click(function () {
+                $("#popdg").datagrid("load", $("#popGridSearchForm").serializeJson());
+            });
+            //弹出选择_重置
+            $("#popResetButton").click(function () {
+                $("#popGridSearchForm").form('reset');
+                $("#popdg").datagrid("load", $("#popGridSearchForm").serializeJson());
+            });
+            //弹出选择_刷新
+            $("#popRefreshButton").click(function () {
+                $("#popdg").datagrid("load", $("#popGridSearchForm").serializeJson());
+            });
+            //弹出选择_确认选择
+            function popdgSelOk(){
+                var cb = $("#popdg").datagrid('options')["callback"];
+                var row = $('#popdg').datagrid('getSelected');
+                if (row != null) {
+                    cb(row);
+                    $('#popGrid').dialog('close');
+                } else {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                }
+            }
+            //弹出选择_选择
+            $("#popSelItButton").click(function(){
+                popdgSelOk();
+            });
+            //刷新
+            $("#refresh").click(function () {
+                refresh();
+                popGrid("findtest",function(row){
+                        alert(row["address"]);
+                })
+            });
+
+            //重置
+            $("#resetButton").click(function () {
+                $('#searchForm').form('reset');
+                refresh();
+            });
+            del = function (id) {
+                //获取选中的ID串
+                var ids;
+                if (id) {
+                    ids = id;
+                } else {
+                    ids = getDataGridSelectedDatas('id');
+                }
+                if (ids.length <= 0) {
+                    $.messager.alert("注意", "请选择至少一条数据", "info");
+                    return;
+                }
+                $.messager.confirm('注意', '确定删除吗?', function (r) {
+                    if (r) {
+                        $.messager.progress({
+                            title: '请稍后',
+                            msg: '操作进行中...'
+                        });
+                        $.ajax({
+                            url: "/systemManager/userManager",
+                            data: {'ids': ids, 'op': 'delete'},
+                            type: "Post",
+                            dataType: "json",
+                            success: function (data) {
+                                $.messager.progress('close');
+                                showMsg("删除成功");
+                                refresh();
+                                if (data.errcode != 0) {
+                                    $.messager.alert("错误", data.errmsg, "error");
                                 }
-                            });
-                        }
-                    });
-                }
-                else {
-                    Ext.Msg.alert("错误", "没有任何行被选中，无法进行删除操作！");
-                }
+                            },
+                            error: function (data) {
+                                $.messager.progress('close');
+                                $.messager.alert('错误', data, "error");
+                            }
+                        });
+                    }
+                });
             }
+            //删除
+            $("#delete").click(function () {
+                del();
+            });
+            ///////////////////////////////////////////////子表操作////////////////////////////////////////
+            function getSubDataGridSelectedRow() {
+                var row = $('#subdg').datagrid('getSelected');
+                return row;
+            }
+
+            //获取表格选中行的指定列(单选)
+            function getSubDataGridSelectedData(field) {
+                var row = $('#subdg').datagrid('getSelected');
+                if (row != null) {
+                    value = row[field];
+                } else {
+                    value = '';
+                }
+                return value;
+            }
+
+            //获取表格选中行的指定列(多选)
+            function getSubDataGridSelectedDatas(field) {
+                var ids = '';
+                var rows = $('#subdg').datagrid('getSelections');
+                for (var i = 0; i < rows.length; i++) {
+                    ids += rows[i][field];
+                    ids += ',';
+                }
+                ids = ids.substring(0, ids.length - 1);
+                return ids;
+            }
+
+            function subAction(fm, op) {
+                $.messager.progress({
+                    title: '请稍后',
+                    msg: '操作进行中...'
+                });
+                fm.form('submit', {
+                    url: "/systemManager/userManager",
+                    onSubmit: function () {
+                        var isValid = $(this).form('validate');
+                        if (!isValid) {
+                            $.messager.progress('close');	// hide progress bar while the form is invalid
+                        }
+                        return isValid;	// return false will stop the form submission
+                    },
+                    success: function (e) {
+                        var json = $.parseJSON(e);
+                        if (json.errcode != 0) {
+                            $.messager.alert("错误", json.errmsg, "error");
+                        } else {
+                            showMsg("操作成功");
+                            if (op == "add") {
+                                $('#subAddDialog').dialog('close');
+                            } else if (op == "edit") {
+                                $('#subEditDialog').dialog('close')
+                            }
+                            subRefresh();
+                        }
+                        $.messager.progress('close');	// hide progress bar while submit successfully
+                    }
+                });
+            }
+
+            //添加
+            function subAdd() {
+                $('#subAddForm').form('reset');
+                $('#subAddDialog').dialog('open').dialog('setTitle', '添加');
+            }
+
+            $("#subAdd").click(function () {
+                subAdd();
+            });
+            //编辑
+            function subEdit() {
+                var row = getSubDataGridSelectedRow();
+                if (!row || row == undefined || row == null) {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                    return;
+                }
+                $('#subEditForm').form('reset');
+                var json = {};
+                for (var k in row) {
+                    $(json).attr("user." + k, row[k]);
+                }
+                $(json).attr("op", "edit");
+
+                $('#subEditForm').form('load', json);
+                $('#subEditDialog').dialog('open').dialog('setTitle', '编辑');
+            }
+
+            //编辑
+            $("#subEdit").click(function () {
+                subEdit();
+            });
+            //查看
+            function subView() {
+                var row = getSubDataGridSelectedRow();
+                if (!row || row == undefined || row == null) {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                    return;
+                }
+                for (var k in row) {
+                    var str = row[k] ? row[k] : "";
+                    if (k == "") {
+
+                    } else if (k == "sex") {
+                        str = renderSex(str);
+                    } else if (k == "status") {
+                        str = renderStatus(str);
+                    }
+                    $("#view_sub_" + k).text(str);
+                }
+                $('#subViewDialog').dialog('open').dialog('setTitle', '查看');
+            }
+
+            //查看
+            $("#subView").click(function () {
+                subView();
+
+            });
+            //保存
+            $("#subSddSaveButton").click(function () {
+                action($("#subAddForm"), "add");
+            });
+            //保存
+            $("#subEditSaveButton").click(function () {
+                action($("#subEditForm"), "edit");
+            });
+            //查询
+            $("#subSearchButton").click(function () {
+                $("#subdg").datagrid("load", $("#subSearchForm").serializeJson());
+            });
+            //刷新
+            function subRefresh() {
+                $("#subdg").datagrid("load", $("#subSearchForm").serializeJson());
+            }
+
+            //刷新
+            $("#subRefresh").click(function () {
+                subRefresh();
+            });
+            //重置
+            $("#subResetButton").click(function () {
+                $('#subSearchForm').form('reset');
+                subRefresh();
+            });
+            subDel = function (id) {
+                //获取选中的ID串
+                var ids;
+                if (id) {
+                    ids = id;
+                } else {
+                    ids = getSubDataGridSelectedDatas('id');
+                }
+                if (ids.length <= 0) {
+                    $.messager.alert("注意", "请选择至少一条数据", "info");
+                    return;
+                }
+                $.messager.confirm('注意', '确定删除吗?', function (r) {
+                    if (r) {
+                        $.messager.progress({
+                            title: '请稍后',
+                            msg: '操作进行中...'
+                        });
+                        $.ajax({
+                            url: "/systemManager/userManager",
+                            data: {'ids': ids, 'op': 'delete'},
+                            type: "Post",
+                            dataType: "json",
+                            success: function (data) {
+                                $.messager.progress('close');
+                                showMsg("删除成功");
+                                refresh();
+                                if (data.errcode != 0) {
+                                    $.messager.alert("错误", data.errmsg, "error");
+                                }
+                            },
+                            error: function (data) {
+                                $.messager.progress('close');
+                                $.messager.alert('错误', data, "error");
+                            }
+                        });
+                    }
+                });
+            }
+            //删除
+            $("#subDelete").click(function () {
+                subDel();
+            });
+            init = false;
+            setTimeout(function(){
+                $.parser.parse();
+            },1000);
         });
     </script>
 </head>
 <body>
-<div id="content" style="width: 100%;height: 100%"></div>
+<div id='Loading' style="position:absolute;z-index:1000;top:0px;left:0px;width:100%;height:100%;background:#DDDDDB;text-align:center;padding-top: 20%;"><h1><img src="/js/easyui/themes/gray/images/loading.gif"><font color="#15428B">加载中···</font></h1></div>
+<table width="100%" id="dg" toolbar="#dg_tb"></table>
+<div id="dg_tb" style="padding:3px; height: auto">
+    <div style="height:30px;" class="datagrid-toolbar">
+	<span style="float:left;">
+
+	<a id="add" href="javascript:" class="easyui-linkbutton" plain="true" icon="add">添加</a>
+	<a id="edit" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-edit">编辑</a>
+	<a id="delete" href="javascript:" class="easyui-linkbutton" plain="true" icon="delete">删除</a>
+	<a id="view" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-search">查看</a>
+        <a id="refresh" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">刷新</a>
+
+	</span>
+    </div>
+    <div name="searchPanel">
+
+        <form id="searchForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" name="op" value="view"/>
+            <table style="font-size: 12px;text-align: right">
+                <tr>
+                    <td>登录ID:</td>
+                    <td class="tdRightPadding"><input name="user.username"
+                                                      data-options="validType:{length:[3,15]}"
+                                                      class="f1 easyui-textbox"/></td>
+                    <td>姓名:</td>
+                    <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
+                                                      data-options="validType:['length[6,18]']"/>
+                    </td>
+                    <td>手机:</td>
+                    <td class="tdRightPadding"><input name="user.mobile" class="f1 easyui-textbox"
+                                                      data-options="validType:['mobile']"/></td>
+                </tr>
+                <tr>
+                    <td>性别:</td>
+                    <td class="tdRightPadding"><input id="search_sex" class="easyui-combobox" name="user.sex"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('search_sex','acyframework_users_sex')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>状态:</td>
+                    <td class="tdRightPadding"><input id="search_status" class="easyui-combobox" name="user.status"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('search_status','acyframework_users_status')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+
+                    </td>
+                    <td></td>
+                    <td><a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find">查询</a><a
+                            href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase">重置</a></td>
+                </tr>
+            </table>
+        </form>
+    </div>
+</div>
+    <div id="addDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+         data-options="closed:true,buttons:'#addDialog-buttons',modal:true,iconCls:'icon-add'">
+        <form id="addForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" name="op" value="add"/>
+            <table style="font-size: 12px;text-align: right">
+                <tr>
+                    <td>登录ID:</td>
+                    <td class="tdRightPadding"><input name="user.username"
+                                                      data-options="required:true,validType:{length:[3,15]}"
+                                                      class="f1 easyui-textbox"/></td>
+                    <td>密码:</td>
+                    <td class="tdRightPadding"><input name="user.password" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:['length[6,18]']"/>
+                    </td>
+                    <td>姓名:</td>
+                    <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:{length:[2,4]}"/></td>
+                </tr>
+                <tr>
+                    <td>性别:</td>
+                    <td class="tdRightPadding"><input id="add_sex" required="true" class="easyui-combobox" name="user.sex"
+                                                      data-options="
+                     onShowPanel:function(){showCombboxData('add_sex','acyframework_users_sex')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>状态:</td>
+                    <td class="tdRightPadding"><input id="add_status" required="true" class="easyui-combobox" name="user.status"
+                                                      data-options="
+                     onShowPanel:function(){showCombboxData('add_status','acyframework_users_status')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>手机:</td>
+                    <td class="tdRightPadding"><input name="user.mobile" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>固定电话:</td>
+                    <td class="tdRightPadding"><input name="user.phone" class="f1 easyui-textbox"/></td>
+                    <td>地址:</td>
+                    <td class="tdRightPadding"><input name="user.address" class="f1 easyui-textbox"
+                                                      data-options="required:false,validType:['length[1,255]']"/>
+                    </td>
+                    <td>QQ号码:</td>
+                    <td class="tdRightPadding"><input name="user.QQ" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>邮箱地址:</td>
+                    <td class="tdRightPadding"><input name="user.mail" class="f1 easyui-textbox"
+                                                      data-options="validType:['email']"/></td>
+                </tr>
+
+            </table>
+        </form>
+        <div id="addDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" id="addSaveButton"
+               data-options="iconCls:'icon-save',plain:true">保存</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#addDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+    <div id="editDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+         data-options="closed:true,buttons:'#editDialog-buttons',modal:true,iconCls:'icon-edit'">
+        <form id="editForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" name="op" value="edit"/>
+            <input type="hidden" name="user.id" value="0"/>
+            <table style="font-size: 12px;text-align: right">
+                <tr>
+                    <td>登录ID:</td>
+                    <td class="tdRightPadding"><input name="user.username"
+                                                      data-options="required:true,validType:{length:[3,15]}"
+                                                      class="f1 easyui-textbox"/></td>
+                    <td>密码:</td>
+                    <td class="tdRightPadding"><input name="user.password" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:['length[6,18]']"/>
+                    </td>
+                    <td>姓名:</td>
+                    <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:{length:[2,4]}"/></td>
+                </tr>
+                <tr>
+                    <td>性别:</td>
+                    <td class="tdRightPadding"><input id="edit_sex" required="true" class="easyui-combobox" name="user.sex"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('edit_sex','acyframework_users_sex')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>状态:</td>
+                    <td class="tdRightPadding"><input id="edit_status" required="true" class="easyui-combobox" name="user.status"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('edit_status','acyframework_users_status')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>手机:</td>
+                    <td class="tdRightPadding"><input name="user.mobile" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>固定电话:</td>
+                    <td class="tdRightPadding"><input name="user.phone" class="f1 easyui-textbox"/></td>
+                    <td>地址:</td>
+                    <td class="tdRightPadding"><input name="user.address" class="f1 easyui-textbox"
+                                                      data-options="required:false,validType:['integer','length[1,5]']"/>
+                    </td>
+                    <td>QQ号码:</td>
+                    <td class="tdRightPadding"><input name="user.QQ" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>邮箱地址:</td>
+                    <td class="tdRightPadding"><input name="user.mail" class="f1 easyui-textbox"
+                                                      data-options="validType:['email']"/></td>
+                </tr>
+
+            </table>
+        </form>
+        <div id="editDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" id="editSaveButton"
+               data-options="iconCls:'icon-save',plain:true">保存</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#editDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+    <div id="viewDialog" class="easyui-dialog" style="width: 800px; height: 80%; padding: 10px 20px"
+         data-options="closed:true,buttons:'#viewDialog-buttons',modal:true,iconCls:'icon-search'">
+        <table style="font-size: 12px;text-align: right" id="subable">
+            <tr>
+                <td>登录ID:</td>
+                <td class="tdRightPadding" id="view_username"></td>
+                <td>密码:</td>
+                <td class="tdRightPadding" id="view_password"></td>
+                <td>姓名:</td>
+                <td class="tdRightPadding" id="view_userRealName"></td>
+            </tr>
+            <tr>
+                <td>性别:</td>
+                <td class="tdRightPadding" id="view_sex"></td>
+                <td>状态:</td>
+                <td class="tdRightPadding" id="view_status"></td>
+                <td>手机:</td>
+                <td class="tdRightPadding" id="view_mobile"></td>
+            </tr>
+            <tr>
+                <td>固定电话:</td>
+                <td class="tdRightPadding" id="view_phone"></td>
+                <td>地址:</td>
+                <td class="tdRightPadding" id="view_address"></td>
+                <td>QQ号码:</td>
+                <td class="tdRightPadding" id="view_QQ"></td>
+            </tr>
+            <tr>
+                <td>邮箱地址:</td>
+                <td class="tdRightPadding" id="view_mail"></td>
+            </tr>
+        </table>
+        <div id="subdgdiv">
+            <div id="subdg" toolbar="#subdg_tb"/>
+            <div id="subdg_tb" style="padding:3px; height: auto">
+                <div style="height:30px;" class="datagrid-toolbar">
+	<span style="float:left;">
+
+	<a id="subAdd" href="javascript:" class="easyui-linkbutton" plain="true" icon="add">添加</a>
+	<a id="subEdit" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-edit">编辑</a>
+	<a id="subDelete" href="javascript:" class="easyui-linkbutton" plain="true" icon="delete">删除</a>
+	<a id="subView" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-search">查看</a>
+        <a id="subRefresh" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">刷新</a>
+
+	</span>
+                </div>
+                <div name="searchPanel">
+
+                    <form id="subSearchForm" action="/systemManager/userManager" method="post">
+                        <input type="hidden" name="op" value="view"/>
+                        <table style="font-size: 12px;text-align: right">
+                            <tr>
+                                <td>店铺名称:</td>
+                                <td class="tdRightPadding"><input name="addasShop.shopName"
+                                                                  data-options="validType:{length:[3,15]}"
+                                                                  class="f1 easyui-textbox"/></td>
+                                <td>地址:</td>
+                                <td class="tdRightPadding"><input name="addasShop.address" class="f1 easyui-textbox"
+                                                                  data-options="validType:['length[6,18]']"/>
+                                </td>
+                                <td>状态:</td>
+                                <td class="tdRightPadding"><input id="subSearch_status" style="width: 110px;" class="easyui-combobox"
+                                                                  name="user.status"
+                                                                  data-options="
+                    onShowPanel:function(){showCombboxData('subSearch_status','acyframework_users_status')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+
+                                    <a href="javascript:" title="查询" id="subSearchButton" class="easyui-linkbutton"
+                                       icon="find"></a><a
+                                            href="javascript:" title="重置" id="subResetButton" class="easyui-linkbutton"
+                                            icon="erase"></a>
+
+                                </td>
+                            </tr>
+                        </table>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="viewDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#viewDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+<div id="subdlgs">
+    <div id="subAddDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+         data-options="closed:true,buttons:'#subAddDialog-buttons',modal:true,iconCls:'icon-add'">
+        <form id="subAddForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" name="op" value="add"/>
+            <table style="font-size: 12px;text-align: right">
+                <tr>
+                    <td>登录ID:</td>
+                    <td class="tdRightPadding"><input name="user.username"
+                                                      data-options="required:true,validType:{length:[3,15]}"
+                                                      class="f1 easyui-textbox"/></td>
+                    <td>密码:</td>
+                    <td class="tdRightPadding"><input name="user.password" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:['length[6,18]']"/>
+                    </td>
+                    <td>姓名:</td>
+                    <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:{length:[2,4]}"/></td>
+                </tr>
+                <tr>
+                    <td>性别:</td>
+                    <td class="tdRightPadding"><input id="subAdd_sex" required="true" class="easyui-combobox" name="user.sex"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('subAdd_sex','acyframework_users_sex')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>状态:</td>
+                    <td class="tdRightPadding"><input id="subAdd_status" required="true" class="easyui-combobox" name="user.status"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('subAdd_status','acyframework_users_status')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>手机:</td>
+                    <td class="tdRightPadding"><input name="user.mobile" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>固定电话:</td>
+                    <td class="tdRightPadding"><input name="user.phone" class="f1 easyui-textbox"/></td>
+                    <td>地址:</td>
+                    <td class="tdRightPadding"><input name="user.address" class="f1 easyui-textbox"
+                                                      data-options="required:false,validType:['length[1,255]']"/>
+                    </td>
+                    <td>QQ号码:</td>
+                    <td class="tdRightPadding"><input name="user.QQ" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>邮箱地址:</td>
+                    <td class="tdRightPadding"><input name="user.mail" class="f1 easyui-textbox"
+                                                      data-options="validType:['email']"/></td>
+                </tr>
+
+            </table>
+        </form>
+        <div id="subAddDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" id="subAddSaveButton"
+               data-options="iconCls:'icon-save',plain:true">保存</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#subAddDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+    <div id="subEditDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+         data-options="closed:true,buttons:'#subEditDialog-buttons',modal:true,iconCls:'icon-edit'">
+        <form id="subEditForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" name="op" value="edit"/>
+            <input type="hidden" name="user.id" value="0"/>
+            <table style="font-size: 12px;text-align: right">
+                <tr>
+                    <td>登录ID:</td>
+                    <td class="tdRightPadding"><input name="user.username"
+                                                      data-options="required:true,validType:{length:[3,15]}"
+                                                      class="f1 easyui-textbox"/></td>
+                    <td>密码:</td>
+                    <td class="tdRightPadding"><input name="user.password" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:['length[6,18]']"/>
+                    </td>
+                    <td>姓名:</td>
+                    <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
+                                                      data-options="required:true,validType:{length:[2,4]}"/></td>
+                </tr>
+                <tr>
+                    <td>性别:</td>
+                    <td class="tdRightPadding"><input id="subEdit_sex" required="true" class="easyui-combobox" name="user.sex"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('subEdit_sex','acyframework_users_sex')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>状态:</td>
+                    <td class="tdRightPadding"><input required="true" id="subEdit_status" class="easyui-combobox" name="user.status"
+                                                      data-options="
+                    onShowPanel:function(){showCombboxData('subEdit_status','acyframework_users_status')},
+                    method:'get',
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'">
+                    </td>
+                    <td>手机:</td>
+                    <td class="tdRightPadding"><input name="user.mobile" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>固定电话:</td>
+                    <td class="tdRightPadding"><input name="user.phone" class="f1 easyui-textbox"/></td>
+                    <td>地址:</td>
+                    <td class="tdRightPadding"><input name="user.address" class="f1 easyui-textbox"
+                                                      data-options="required:false,validType:['integer','length[1,5]']"/>
+                    </td>
+                    <td>QQ号码:</td>
+                    <td class="tdRightPadding"><input name="user.QQ" class="f1 easyui-textbox"/></td>
+                </tr>
+                <tr>
+                    <td>邮箱地址:</td>
+                    <td class="tdRightPadding"><input name="user.mail" class="f1 easyui-textbox"
+                                                      data-options="validType:['email']"/></td>
+                </tr>
+
+            </table>
+        </form>
+        <div id="subEditDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" id="subEditSaveButton"
+               data-options="iconCls:'icon-save',plain:true">保存</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#subEditDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+    <div id="subViewDialog" class="easyui-dialog" style="width: 800px; padding: 10px 20px"
+         data-options="closed:true,buttons:'#subViewDialog-buttons',modal:true,iconCls:'icon-search'">
+        <table style="font-size: 12px;text-align: right">
+            <tr>
+                <td style="width: 60px;">店铺名称:</td>
+                <td class="tdRightPadding" id="view_sub_shopName"></td>
+                <td style="width: 60px;">店铺地址:</td>
+                <td class="tdRightPadding" id="view_sub_address"></td>
+                <td style="width: 60px;">营业时间:</td>
+                <td class="tdRightPadding" id="view_sub_openDate"></td>
+            </tr>
+            <tr>
+                <td style="width: 60px;">状态:</td>
+                <td class="tdRightPadding" id="view_sub_status"></td>
+                <td style="width: 60px;">店龄:</td>
+                <td class="tdRightPadding" id="view_sub_age"></td>
+                <td></td>
+                <td></td>
+            </tr>
+
+        </table>
+
+
+        <div id="subViewDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#subViewDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+    <div id="popGrid" class="easyui-dialog" style="width: 800px; height: 400px; padding: 10px 20px"
+         data-options="closed:true,buttons:'#popGridDialog-buttons',modal:true,iconCls:'icon-search'">
+
+        <div id="popdg" toolbar="#popdg_tb"/>
+        <div id="popdg_tb" style="padding:3px; height: auto">
+            <div name="searchPanel">
+
+                <form id="popGridSearchForm" action="" method="post">
+                    <input type="hidden" name="op" value="popGrid"/>
+                    <input type="hidden" name="popGridCode" value=""/>
+                    <input name="searchStr"
+                           data-options="validType:{length:[1,255]}"
+                           class="f1 easyui-textbox"/>
+                    <a href="javascript:" id="popSearchButton" class="easyui-linkbutton" icon="find">查询</a>
+                    <a href="javascript:" id="popResetButton" class="easyui-linkbutton" icon="erase">重置</a>
+                    <a id="popRefreshButton" href="javascript:" class="easyui-linkbutton"  icon="arrowrefresh">刷新</a>
+                </form>
+            </div>
+        </div>
+
+        <div id="popGridDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" id="popSelItButton" data-options="iconCls:'accept',plain:true">选择</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#popGrid').dialog('close')">取消</a>
+        </div>
+    </div>
+</div>
 </body>
 </html>

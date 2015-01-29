@@ -78,16 +78,17 @@ public class AddasShopController extends Controller {
                         sb.append(" = ?");
                     }
                 }
+                System.out.println(sb);
                 page = AddasShopModel.dao.paginate((start/limit)+1,limit,"SELECT *",sb.toString(),model.getAttrValues());
 
 
             }else{
                 page = AddasShopModel.dao.paginate((start/limit)+1,limit,"SELECT *",sb.toString());
             }
-            jo.put("totalCount", page.getTotalRow());
-            jo.put("errcode", 0);
-            jo.put("datas", page.getList());
-            renderJson(jo);
+//            jo.put("totalCount", page.getTotalRow());
+//            jo.put("errcode", 0);
+//            jo.put("datas", page.getList());
+            renderJson(page.getList());
         }else if ("delete".equalsIgnoreCase(op)) {
             String ids = getPara("ids");
             if(StrKit.notBlank(ids)){

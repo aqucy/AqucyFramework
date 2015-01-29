@@ -14,6 +14,8 @@ import com.v246.commonWebFramework.dao.MenuModel;
 import com.v246.commonWebFramework.dao.RoleModel;
 import com.v246.commonWebFramework.dao.UserModel;
 import com.v246.commonWebFramework.dao.UserRoleModel;
+import com.v246.commonWebFramework.utils.AqucyTools;
+import com.v246.commonWebFramework.utils.createCode.EasyUICreateCode;
 import com.v246.commonWebFramework.utils.createCode.Extjs2CreateCode;
 import com.v246.commonWebFramework.utils.createCode.ICreateCode;
 
@@ -152,19 +154,21 @@ public class SystemController extends Controller {
                             rm.set("description", model.getStr("userRealName"));
                             rm.set("isPrivate", true);
                             rm.update();
+                            jo.put("errcode", 0);
                         }
                     }
                 }
-                jo.put("errcode", 0);
             } catch (Exception e) {
                 jo.put("errcode", 1104);
                 jo.put("errmsg", "系统后台异常,请联系管理员");
                 e.printStackTrace();
             }
+            System.out.println(jo);
             renderJson(jo);
         } else if ("view".equalsIgnoreCase(op)) {
-            int start = getParaToInt("start",0);
-            int limit = getParaToInt("limit",3);
+            int start = getParaToInt("page",1);
+            int limit = getParaToInt("rows",10);
+            start = (start-1)*limit;
             StringBuffer sb = new StringBuffer();
             sb.append("FROM acyframework_users");
             model.removeNullValueAttrs();
@@ -184,15 +188,22 @@ public class SystemController extends Controller {
                         sb.append(" = ?");
                     }
                 }
+                String sort = getPara("sort");
+                if(StrKit.notBlank(sort)){
+                    sb.append(" order by ").append(sort).append(" ").append(getPara("order"));
+                }
                 page = UserModel.dao.paginate((start/limit)+1,limit,"SELECT *",sb.toString(),model.getAttrValues());
 
-
             }else{
+                String sort = getPara("sort");
+                if(StrKit.notBlank(sort)){
+                    sb.append(" order by ").append(sort).append(" ").append(getPara("order"));
+                }
                 page = UserModel.dao.paginate((start/limit)+1,limit,"SELECT *",sb.toString());
             }
-            jo.put("totalCount", page.getTotalRow());
+            jo.put("total", page.getTotalRow());
             jo.put("errcode", 0);
-            jo.put("datas", page.getList());
+            jo.put("rows", page.getList());
             renderJson(jo);
         }else if ("delete".equalsIgnoreCase(op)) {
             String ids = getPara("ids");
@@ -203,8 +214,12 @@ public class SystemController extends Controller {
                 Db.batch("delete from acyframework_roles where role_name=?", "username", Db.find("SELECT username FROM acyframework_users where id in(" + ids + ")"), 1000);
                 //删除用户
                 Db.update("delete from acyframework_users where id in(" + ids + ")");
-
             }
+            jo.put("errcode", 0);
+            renderJson(jo);
+        }else if("popGrid".equalsIgnoreCase(op)){
+            AqucyTools tools = new AqucyTools();
+            tools.doPopGrid(this);
         }else {
             render("userManager.html");
         }
@@ -216,7 +231,7 @@ public class SystemController extends Controller {
         if(StrKit.isBlank(op)){
             render("createCodeManager.html");
         }else if("getColumn".equalsIgnoreCase(op)){
-            String targetName = getPara("targetName");
+            String targetName = getPara("tableName");
             String sql = "SELECT * FROM "+targetName+" limit 0,1";
             Connection connection = null;
             Statement stm = null;
@@ -259,8 +274,8 @@ public class SystemController extends Controller {
                     m.put("displayName", metars.getString("REMARKS"));
                     m.put("columnTypeName", metars.getString("TYPE_NAME"));
                     m.put("columnDisplaySize", metars.getString("COLUMN_SIZE"));
-                    m.put("required",true);
-                    m.put("allowQuery",false);
+                    m.put("required","是");
+                    m.put("allowQuery","");
                     m.put("formType","textInput");
                     int dataType = metars.getInt("DATA_TYPE");
                     if(dataType==Types.INTEGER) {
@@ -276,13 +291,13 @@ public class SystemController extends Controller {
                         m.put("formType","dateTimePicker");
                     }
                     if(metars.getBoolean("IS_NULLABLE")){
-                        m.put("required",false);
+                        m.put("required","");
                     }else{
-                        m.put("allowQuery",true);
+                        m.put("allowQuery","是");
                     }
                     list.add(m);
                 }
-                jo.put("datas",list);
+                jo.put("rows",list);
                 jo.put("errcode", 0);
                 renderJson(jo);
             }catch(Exception e){
@@ -291,10 +306,31 @@ public class SystemController extends Controller {
             }
 
         }else if("createCode".equalsIgnoreCase(op)){
-            ICreateCode createCode = new Extjs2CreateCode();
-            createCode.createCode(getPara("json"));
-            jo.put("errcode", 0);
+            String tableName = getPara("tableName");
+            String alias = getPara("alias");
+            if(StrKit.isBlank(tableName)||StrKit.isBlank(alias)){
+                jo.put("errcode", 1);
+                jo.put("errmsg", "表名或别名不能为空");
+            }else{
+                ICreateCode createCode = new EasyUICreateCode();
+                String re = createCode.createCode(getPara("json"));
+                if(re!=null){
+                    jo.put("errcode", 1);
+                    jo.put("errmsg",re);
+                }else{
+                    jo.put("errcode", 0);
+                }
+
+            }
             renderJson(jo);
+        }else if("getAllDict".equalsIgnoreCase(op)){
+            List<Record> list = Db.find("SELECT distinct(code) FROM acyframework_dictionary");
+            for(Record r:list){
+                String k = r.get("code");
+                r.set("label",k);
+                r.set("value",k);
+            }
+            renderJson(list);
         }
 
     }

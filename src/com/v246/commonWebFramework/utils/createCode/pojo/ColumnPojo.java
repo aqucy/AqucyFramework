@@ -11,9 +11,70 @@ public class ColumnPojo {
     private String dictCode;
     private String regex;
     private boolean isRequired;
-    private String formType;
+    private String inputType;
     private String regexErrorMsg;
     private boolean isAllowQuery;
+    private boolean isAllowAdd;
+    private boolean isAllowEdit;
+    private boolean isAllowDisplay;
+    private String validateType;
+    private int minLength;
+    private int maxLength;
+
+    public int getMinLength() {
+        return minLength;
+    }
+
+    public void setMinLength(int minLength) {
+        this.minLength = minLength;
+    }
+
+    public int getMaxLength() {
+        return maxLength;
+    }
+
+    public void setMaxLength(int maxLength) {
+        this.maxLength = maxLength;
+    }
+
+    public boolean isAllowDisplay() {
+        return isAllowDisplay;
+    }
+
+    public void setAllowDisplay(boolean isAllowDisplay) {
+        this.isAllowDisplay = isAllowDisplay;
+    }
+
+    public String getValidateType() {
+        return validateType;
+    }
+
+    public void setValidateType(String validateType) {
+        this.validateType = validateType;
+    }
+    public String getInputType() {
+        return inputType;
+    }
+
+    public void setInputType(String inputType) {
+        this.inputType = inputType;
+    }
+
+    public boolean isAllowAdd() {
+        return isAllowAdd;
+    }
+
+    public void setAllowAdd(boolean isAllowAdd) {
+        this.isAllowAdd = isAllowAdd;
+    }
+
+    public boolean isAllowEdit() {
+        return isAllowEdit;
+    }
+
+    public void setAllowEdit(boolean isAllowEdit) {
+        this.isAllowEdit = isAllowEdit;
+    }
 
     public String getColumnName() {
         return columnName;
@@ -60,14 +121,7 @@ public class ColumnPojo {
         this.isRequired = isRequired;
     }
 
-    public String getFormType() {
-        return formType;
-    }
 
-    public void setFormType(String formType) {
-        if(StrKit.notBlank(formType))
-        this.formType = formType;
-    }
 
     public String getRegexErrorMsg() {
         return regexErrorMsg;

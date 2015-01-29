@@ -12,9 +12,66 @@ public class TableConfig {
     private String tableName;
     private String primaryKey;
     private List<ColumnPojo> columnPojos = null;
+    private List<ColumnPojo> allDisplayPojos = null;
+    private List<ColumnPojo> allAddPojos = null;
+    private List<ColumnPojo> allEditPojos = null;
+    private List<ColumnPojo> allQueryPojos = null;
     private Map<String,List<DictionaryModel>> dicts = null;
     private int maxDisplayColumnLen = 0;
     private int maxQueryColumnLen = 0;
+    private String tableAliasName;
+    private long subViewObjectId;
+
+    public long getSubViewObjectId() {
+        return subViewObjectId;
+    }
+
+    public void setSubViewObjectId(long subViewObjectId) {
+        this.subViewObjectId = subViewObjectId;
+    }
+
+    public List<ColumnPojo> getAllQueryPojos() {
+        return allQueryPojos;
+    }
+
+    public void setAllQueryPojos(List<ColumnPojo> allQueryPojos) {
+        this.allQueryPojos = allQueryPojos;
+    }
+
+    public List<ColumnPojo> getAllDisplayPojos() {
+        return allDisplayPojos;
+    }
+
+    public void setAllDisplayPojos(List<ColumnPojo> allDisplayPojos) {
+        this.allDisplayPojos = allDisplayPojos;
+    }
+
+    public List<ColumnPojo> getAllAddPojos() {
+        return allAddPojos;
+    }
+
+    public void setAllAddPojos(List<ColumnPojo> allAddPojos) {
+        this.allAddPojos = allAddPojos;
+    }
+
+    public List<ColumnPojo> getAllEditPojos() {
+        return allEditPojos;
+    }
+
+    public void setAllEditPojos(List<ColumnPojo> allEditPojos) {
+        this.allEditPojos = allEditPojos;
+    }
+
+
+
+
+    public String getTableAliasName() {
+        return tableAliasName;
+    }
+
+    public void setTableAliasName(String tableAliasName) {
+        this.tableAliasName = tableAliasName;
+    }
 
     public int getMaxQueryColumnLen() {
         return maxQueryColumnLen;
