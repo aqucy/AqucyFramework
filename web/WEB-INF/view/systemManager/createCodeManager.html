@@ -12,6 +12,7 @@
     <script type="text/javascript" src="/js/easyui/locale/easyui-lang-zh_CN.js"></script>
     <script type="text/javascript" src="/js/acyFramework/easyui_validate_ext.js"></script>
     <script type="text/javascript" src="/js/acyFramework/aqucy.js"></script>
+    <script type="text/javascript" src="/js/json2.js"></script>
     <link rel="stylesheet" type="text/css" href="/css/icon.css"/>
     <style type="text/css">
         .tdRightPadding {
@@ -24,7 +25,10 @@
     <script type="text/javascript">
         $.parser.auto = false;
         var allDictJson;
+        var selectInputSqlcolumnJson;
         var haveData = false;
+        var currentAdvColumnName;
+        var tmpConfigJson = {};
         $.parser.onComplete = function (context) {
             $("#Loading").css("display", "none");
             $.get("/systemManager/createCodeManager?op=getAllDict",
@@ -42,6 +46,7 @@
                     showType: 'show'
                 });
             }
+
             function createDataGrid() {
                 var initUrl = '/systemManager/createCodeManager';
                 initUrl = encodeURI(initUrl);
@@ -179,55 +184,6 @@
                                         width: 120
                                     },
                                     {
-                                        field: 'inputType',
-                                        title: '表单类型',
-                                        editor: {
-                                            type: "combobox",
-                                            options: {
-                                                valueField: 'value',
-                                                textField: 'label',
-                                                data: [{
-                                                    label: 'textbox',
-                                                    value: 'textbox'
-                                                }, {
-                                                    label: 'combobox',
-                                                    value: 'combobox'
-                                                }, {
-                                                    label: 'datebox',
-                                                    value: 'datebox'
-                                                }, {
-                                                    label: 'datetimebox',
-                                                    value: 'datetimebox'
-                                                }, {
-                                                    label: 'datetimespinner',
-                                                    value: 'datetimespinner'
-                                                }, {
-                                                    label: 'timespinner',
-                                                    value: 'timespinner'
-                                                }, {
-                                                    label: 'calendar',
-                                                    value: 'calendar'
-                                                }, {
-                                                    label: 'numberspinner',
-                                                    value: 'numberspinner'
-                                                }, {
-                                                    label: 'slider',
-                                                    value: 'slider'
-                                                }, {
-                                                    label: 'filebox',
-                                                    value: 'filebox'
-                                                }, {
-                                                    label: 'numberbox',
-                                                    value: 'numberbox'
-                                                }]
-                                            }
-
-                                        },
-                                        hidden: false,
-                                        sortable: true,
-                                        width: 120
-                                    },
-                                    {
                                         field: 'required',
                                         title: '必填',
                                         editor: {
@@ -313,7 +269,7 @@
                                 $("#dg").datagrid("clearSelections");
                             },
                             onClickRow: function (rowIndex, rowData) {
-                                onClickRow(rowIndex);
+                                clickRow(rowIndex,"dg");
                             },
                             onDblClickRow: function (index, row) {
 
@@ -324,15 +280,15 @@
             createDataGrid();
             var editIndex = undefined;
 
-            function endEditing() {
+            function endEditing(dgId) {
                 if (editIndex == undefined) {
                     return true
                 }
-                if ($('#dg').datagrid('validateRow', editIndex)) {
+                if ($('#'+dgId).datagrid('validateRow', editIndex)) {
 //                    var ed = $('#dg').datagrid('getEditor', {index:editIndex,field:'productid'});
 //                    $(ed.target).combobox('loadData',allDictJson);
 //                    $('#dg').datagrid('getRows')[editIndex]['productname'] = productname;
-                    $('#dg').datagrid('endEdit', editIndex);
+                    $('#'+dgId).datagrid('endEdit', editIndex);
                     editIndex = undefined;
                     return true;
                 } else {
@@ -340,17 +296,24 @@
                 }
             }
 
-            function onClickRow(index) {
+            function clickRow(index,dgId) {
 //                console.log($("#dg").datagrid('getData'));
                 if (editIndex != index) {
-                    if (endEditing()) {
-                        $('#dg').datagrid('selectRow', index)
+                    if (endEditing(dgId)) {
+                        $('#'+dgId).datagrid('selectRow', index)
                                 .datagrid('beginEdit', index);
                         editIndex = index;
-                        var ed = $('#dg').datagrid('getEditor', {index: editIndex, field: 'dictCode'});
-                        $(ed.target).combobox('loadData', allDictJson);
+                        var ed = null;
+                        if(dgId=="dg"){
+                            ed = $('#'+dgId).datagrid('getEditor', {index: editIndex, field: 'dictCode'});
+                            $(ed.target).combobox('loadData', allDictJson);
+                        }else if(dgId=="selectInputConfigDg"){
+                            console.log(selectInputSqlcolumnJson.datas);
+                            ed = $('#'+dgId).datagrid('getEditor', {index: editIndex, field: 'targetColumnName'});
+                            $(ed.target).combobox('loadData', selectInputSqlcolumnJson.datas);
+                        }
                     } else {
-                        $('#dg').datagrid('selectRow', editIndex);
+                        $('#'+dgId).datagrid('selectRow', editIndex);
                     }
                 }
             }
@@ -369,7 +332,7 @@
                             $("#dg").datagrid("load", $("#searchForm").serializeJson());
                         }
                     })
-                }else{
+                } else {
                     $("#op").val("getColumn");
                     $("#dg").datagrid("load", $("#searchForm").serializeJson());
                 }
@@ -386,6 +349,7 @@
                     alert("请添写别名");
                     return;
                 }
+                endEditing("dg");
                 var json = {};
                 json.datas = $('#dg').datagrid("getData").rows;
                 json.tableName = tn;
@@ -403,16 +367,252 @@
                     success: function (data) {
                         if (data.errcode > 0) {
                             alert(data.errmsg);
-                        }else{
+                        } else {
                             showMsg("操作成功!")
                         }
                     },
                     dataType: "json"
                 });
             });
-            $("#advButton").click(function(){
+            //高级配置菜单
+            $("#advButton").click(function () {
+                endEditing("dg");
+                $("#tree").tree("loadData", []);
+                $("#tt").css("display","none");
+                currentAdvColumnName = "";
+                tmpConfigJson = {};
+                var rows = $('#dg').datagrid("getData").rows;
+                var treeJson = [];
+                for (var i = 0; i < rows.length; i++) {
+                    var json = {};
+                    json.columnName = rows[i].columnName;
+                    json.text = rows[i].columnName;
+                    treeJson.push(json);
+                }
+                $("#tree").tree({
+                    onSelect:function(node){
+                        saveColumnConfig(node);
+                    }
+                });
+                $("#tree").tree("loadData", treeJson);
                 $("#advDialog").dialog('open').dialog('setTitle', '高级设置');
             });
+            //格式化配置中的一些特殊字符串,以便使用easyui FORM的load方法初始化FORM数据
+            function formatAdvFromData(data){
+                var str = JSON.stringify(data);
+                str = str.replace(/是/g,"on");
+                data = $.parseJSON(str);
+                return data;
+            }
+            //临时保存配置到一个对像中
+            function saveColumnConfigToTmpObject(columnName){
+                //将基本的高基本配置的数入项与值转换成json格式数据
+                var formJson = $("#advForm").serializeJson();
+                //如果配置了弹出选择框
+                if(formJson.inputType=="selectInput"){
+                    //如果写了SQL句
+                    if(formJson.inputSql!=""&&formJson.inputSql!=null){
+                        //如果该SQL句没有毛丙
+                        if($("#selectInputConfig").css("display")=="block"){
+                            //则保存弹出选择框的配置
+                            var str = "";
+                            var srows = $("#selectInputConfigDg").datagrid("getData").rows;
+                            for(i=0;i<srows.length;i++){
+                                var tn = srows[i].targetColumnName;
+                                if(tn!=undefined&&tn!=null&&tn!=""){
+                                    str = str+srows[i].columnName+":"+tn+",";
+                                }
+                            }
+                            if(str!=""){
+                                formJson.selectInputConfig = str.substring(0,str.length-1);
+                            }else{
+                                //如果没有配置实际列对应配置,那么将输入框类型置为默认
+                                formJson.inputType = "";
+                            }
+                        }else{
+                            formJson.inputType = "";
+                        }
+                    }else{
+                        formJson.inputType = "";
+                    }
+                }
+                //以列名为KEY,JSON转换成字符串后的值为value 保存,以便以后使用
+                tmpConfigJson[columnName] = JSON.stringify(formJson);
+            }
+            //树结点被点击后,临时保存配置
+            function saveColumnConfig(node){
+                endEditing("selectInputConfigDg");
+                var rows = $('#dg').datagrid("getData").rows;
+                if($("#tt").css("display")=="none"){
+                    $("#tt").css("display","");
+                    currentAdvColumnName = node.columnName;
+                    for(var i=0;i<rows.length;i++) {
+                        if (rows[i].columnName == currentAdvColumnName) {
+                            resetColumnConfig(rows[i]);
+                            break;
+                        }
+                    }
+                }else{
+                    var targetJson;
+                    var cn = node.columnName;
+                    saveColumnConfigToTmpObject(currentAdvColumnName);
+                    if(tmpConfigJson[cn]){
+                        targetJson = $.parseJSON(tmpConfigJson[cn]);
+                    }else{
+                        for(i=0;i<rows.length;i++){
+                            if(rows[i].columnName==cn){
+                                targetJson = rows[i];
+                            }
+                        }
+                    }
+                    resetColumnConfig(targetJson);
+                    currentAdvColumnName = node.columnName;
+                }
+            }
+            //重置列配置
+            function resetColumnConfig(json){
+                //FORM重置
+                $("#advForm").form("reset");
+                //清除弹出选择框的配置
+                clearSelectInputConfigDg();
+                //复位弹出选择框相关UI的可见度
+                $("#selectInputConfig").css("display", "none");
+                $("#selectInputConfigDg").css("display", "none");
+                //读取用户在集中配置界面中的基本配置
+                $("#advForm").form("load",formatAdvFromData(json));
+                //对一些高级组件进行初始化数据(如果配置了的话)
+                resetColumnConfigForAdv(json);
+            }
+            //重置一些比较复杂的配置,比如弹出选择框一类的
+            function resetColumnConfigForAdv(json){
+                console.log(json);
+                //selectInput初始化
+                if(json.inputType=="selectInput"){
+                    $("#selectInputConfig").css("display", "");
+                    readSqlColumnData(json["selectInputConfig"]);
+                }
+            }
+            function initColumnConfig(){
+
+            }
+            $("#inputType").combobox({
+                //如果输入框类型为弹出选择框
+                onSelect: function (data) {
+                    $("#selectInputConfig").css("display", "");
+                }
+            });
+            //清除弹出选择框配置DATAGRID的列及数据
+            function clearSelectInputConfigDg(){
+                $("#selectInputConfigDg").datagrid("loadData",{total:0,rows:[]});
+            }
+            //弹出选择框配置时,输入SQL语句后,点确定按钮进行语句解析,讯取该SQL语句的所有列信息
+            $("#inputSqlOkButton").click(function () {
+                readSqlColumnData();
+            });
+            //读取SQL的列信息,并初填充进datagrid内,如果传入configStr则需将对应的配置信息也初始化
+            function readSqlColumnData(configStr){
+                var sqlColumnConfigJson = {};
+                if(configStr){
+                    var arr = configStr.split(",");
+                    for(var i=0;i<arr.length;i++){
+                        var str = arr[i];
+                        var subArr = str.split(":");
+                        sqlColumnConfigJson[subArr[0]] = subArr[1];
+                    }
+                }
+                console.log(sqlColumnConfigJson);
+                console.log(configStr);
+                var sql = $("#inputSql").val();
+                if (sql == "" || sql == null || sql == undefined) {
+                    alert("SQL语句不能为空")
+                } else {
+                    //获取SQL列数据
+                    $.get("/systemManager/validateSelectInputSql?sql=" + sql,
+                            function (data) {
+                                if (data.errcode != 0) {
+                                    alert(data.errmsg);
+                                } else {
+                                    clearSelectInputConfigDg();
+                                    selectInputSqlcolumnJson = data;
+                                    $("#selectInputConfigDg").datagrid({});
+                                    var rows = $('#dg').datagrid("getData").rows;
+                                    var json=[];
+                                    for(i=0;i<rows.length;i++){
+                                        if(configStr){
+                                            json.push({columnName: rows[i].columnName,targetColumnName:sqlColumnConfigJson[rows[i].columnName]});
+                                        }else{
+                                            json.push({columnName: rows[i].columnName});
+                                        }
+                                    }
+                                    $("#selectInputConfigDg").datagrid("loadData", json);
+                                    //组织DATA
+                                    $("#selectInputConfigDg").css("display", "");
+                                }
+                            }, 'json');
+                }
+            }
+            //弹也选择框配置中的datagrid初始配置
+            $("#selectInputConfigDg").datagrid({
+                singleSelect: true,
+                onClickRow: function (rowIndex, rowData) {
+                    clickRow(rowIndex,'selectInputConfigDg');
+                }
+
+            });
+            //高级配置界面保存操作
+            $("#advSaveButton").click(function() {
+                endEditing("selectInputConfigDg");
+                saveColumnConfigToTmpObject(currentAdvColumnName);
+                var rows = $('#dg').datagrid("getData").rows;
+                for(i=0;i<rows.length;i++){
+                    var columnName = rows[i].columnName;
+                    if(tmpConfigJson[columnName]){
+                        var formJson = $.parseJSON(tmpConfigJson[columnName]);
+                        if(formJson.allowAdd){
+                            rows[i].allowAdd = "是";
+                        }else{
+                            rows[i].allowAdd = "";
+                        }
+                        if(formJson.allowEdit){
+                            rows[i].allowEdit = "是";
+                        }else{
+                            rows[i].allowEdit = "";
+                        }
+                        if(formJson.allowQuery){
+                            rows[i].allowQuery = "是";
+                        }else{
+                            rows[i].allowQuery = "";
+                        }
+                        if(formJson.allowDisplay){
+                            rows[i].allowDisplay = "是";
+                        }else{
+                            rows[i].allowDisplay = "";
+                        }
+                        if(formJson.required){
+                            rows[i].required = "是";
+                        }else{
+                            rows[i].required = "";
+                        }
+                        if(formJson.inputType){
+                            rows[i].inputType=formJson.inputType;
+                        }
+                        if(formJson.selectInputConfig){
+                            rows[i].selectInputConfig = formJson.selectInputConfig;
+                        }
+                        if(formJson.inputSql){
+                            rows[i].inputSql = formJson.inputSql;
+                        }
+                        if(formJson.validateType){
+                            rows[i].validateType = formJson.validateType;
+                        }
+                        rows[i].displayName = formJson.displayName;
+                    }
+                }
+                $("#dg").datagrid("loadData",rows);
+                $('#advDialog').dialog('close');
+
+            });
+            //选迟1秒钟后渲染页面
             setTimeout(function () {
                 $.parser.parse();
             }, 1000);
@@ -455,52 +655,193 @@
 </div>
 <div id="advDialog" class="easyui-layout easyui-dialog" style="width: 100%; height: 100%;"
      data-options="closed:true,buttons:'#advDialog-buttons',modal:true,iconCls:'icon-add'">
-    <form id="addForm" action="/systemManager/userManager" method="post">
+    <form id="advForm" action="/systemManager/userManager" method="post">
         <div data-options="region:'west',title:'菜单栏',split:true" style="width:170px;">
             <ul id="tree" class="easyui-tree">
-                <li>
-                    <span>My Documents</span>
-                    <ul>
-                        <li data-options="state:'closed'">
-                            <span>Photos</span>
-                            <ul>
-                                <li>
-                                    <span>Friend</span>
-                                </li>
-                                <li>
-                                    <span>Wife</span>
-                                </li>
-                                <li>
-                                    <span>Company</span>
-                                </li>
-                            </ul>
-                        </li>
-                        <li>
-                            <span>Program Files</span>
-                            <ul>
-                                <li>Intel</li>
-                                <li>Java</li>
-                                <li>Microsoft Office</li>
-                                <li>Games</li>
-                            </ul>
-                        </li>
-                        <li>index.html</li>
-                        <li>about.html</li>
-                        <li>welcome.html</li>
-                    </ul>
-                </li>
+
             </ul>
 
         </div>
-        <div id="tt" data-options="region:'center',title:''"  class="easyui-tabs" style="padding:5px;background:#eee;">
+        <div id="tt" data-options="region:'center',title:''" class="easyui-tabs" style="padding:5px;background:#eee;display:none;">
+            <div title="基本" style="padding:20px;">
+                <table style="font-size: 12px;">
+                    <tr>
+                        <td style="text-align: right">字段名称:</td>
+                        <td class="tdRightPadding"><input type="text" class="easyui-texbox" name="columnName" readonly
+                                                          data-options=""/></td>
+                        <td style="text-align: right">显示名称:</td>
+                        <td class="tdRightPadding"><input type="text" class="easyui-texbox" name="displayName"/></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right">可显视:</td>
+                        <td class="tdRightPadding"><input type="checkbox" class="easyui-checkbox" name="allowDisplay"
+                                                          data-options=""/></td>
+                        <td style="text-align: right">可增加:</td>
+                        <td class="tdRightPadding"><input type="checkbox" class="easyui-checkbox" name="allowAdd"
+                                                          data-options=""/></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: right">可编辑:</td>
+                        <td class="tdRightPadding"><input type="checkbox" class="easyui-checkbox" name="allowEdit"
+                                                          data-options=""/></td>
+                        <td style="text-align: right">可查询:</td>
+                        <td class="tdRightPadding"><input type="checkbox" class="easyui-checkbox" name="allowQuery"
+                                                          data-options=""/></td>
+                    </tr>
+                </table>
+            </div>
+            <div title="验证" style="padding:20px;">
+                <table style="font-size: 12px;">
+                    <tr>
+                        <td style="text-align: right">验证器:</td>
+                        <td class="tdRightPadding"><input type="text" class="easyui-combobox" name="validateType"
+                                                          data-options="
+                                                valueField: 'value',
+                                                textField: 'label',
+                                                data: [{
+                                                    label: '电话号码',
+                                                    value: 'phone'
+                                                }, {
+                                                    label: '身份证',
+                                                    value: 'idcard'
+                                                }, {
+                                                    label: '整数或小数',
+                                                    value: 'intOrFloat'
+                                                }, {
+                                                    label: '货币',
+                                                    value: 'currency'
+                                                }, {
+                                                    label: 'QQ',
+                                                    value: 'qq'
+                                                }, {
+                                                    label: '整数',
+                                                    value: 'integer'
+                                                }, {
+                                                    label: '年龄',
+                                                    value: 'age'
+                                                }, {
+                                                    label: '中文',
+                                                    value: 'chinese'
+                                                }, {
+                                                    label: '英语',
+                                                    value: 'english'
+                                                }, {
+                                                    label: '非法字符',
+                                                    value: 'unnormal'
+                                                }, {
+                                                    label: '用户名',
+                                                    value: 'username'
+                                                }, {
+                                                    label: '传真',
+                                                    value: 'faxno'
+                                                }, {
+                                                    label: '邮政编码',
+                                                    value: 'zip'
+                                                }, {
+                                                    label: 'IP地址',
+                                                    value: 'ip'
+                                                }, {
+                                                    label: '中文或英文',
+                                                    value: 'name'
+                                                }, {
+                                                    label: '日期',
+                                                    value: 'date'
+                                                }, {
+                                                    label: '邮箱',
+                                                    value: 'email'
+                                                }, {
+                                                    label: '手机号码',
+                                                    value: 'mobile'
+                                                }]
+                                                          "/></td>
+                        <td style="text-align: right">必填:</td>
+                        <td class="tdRightPadding"><input type="checkbox" class="easyui-checkbox" name="required"
+                                                          data-options=""/></td>
+                    </tr>
+                </table>
+            </div>
+            <div title="表单" style="padding:20px;">
+                <span>表单类型:<input class="easyui-combobox" id="inputType" style="width: 110px;" name="inputType" data-options="
 
-            <div title="首页" style="padding:20px;display:none;">
-                tab1
+                                                valueField: 'value',
+                                                textField: 'label',
+                                                data: [{
+                                                    label: 'textbox',
+                                                    value: 'textbox'
+                                                }, {
+                                                    label: 'combobox',
+                                                    value: 'combobox'
+                                                }, {
+                                                    label: 'datebox',
+                                                    value: 'datebox'
+                                                }, {
+                                                    label: 'selectInput',
+                                                    value: 'selectInput'
+                                                }, {
+                                                    label: 'datetimebox',
+                                                    value: 'datetimebox'
+                                                }, {
+                                                    label: 'datetimespinner',
+                                                    value: 'datetimespinner'
+                                                }, {
+                                                    label: 'timespinner',
+                                                    value: 'timespinner'
+                                                }, {
+                                                    label: 'calendar',
+                                                    value: 'calendar'
+                                                }, {
+                                                    label: 'numberspinner',
+                                                    value: 'numberspinner'
+                                                }, {
+                                                    label: 'slider',
+                                                    value: 'slider'
+                                                }, {
+                                                    label: 'filebox',
+                                                    value: 'filebox'
+                                                }, {
+                                                    label: 'numberbox',
+                                                    value: 'numberbox'
+                                                }]
+                        "/></span>
+
+                <div id="selectInputConfig" style="display: none">
+                    <span>
+                        SQL:
+                        <input type="text" style="width: 500px;height: 80px;" class="easyui-textbox"
+                               data-options="multiline:true" id="inputSql" name="inputSql"/>
+                        <a href="javascript:" class="easyui-linkbutton" data-options="iconCls:'accept'"
+                           id="inputSqlOkButton">确定</a>
+                    </span>
+                    <table style="font-size: 12px;display: none;width: 300px" class="easyui-datagrid"
+                           id="selectInputConfigDg">
+                        <thead>
+                        <tr>
+                            <th data-options="field:'columnName',width:150">字段名</th>
+                            <th data-options="field:'targetColumnName',
+                            editor: {
+                                type: 'combobox',
+                                options: {
+                                    valueField: 'value',
+                                    textField: 'label',
+                                    data: allDictJson,
+                                    filter: function (q, row) {
+                                        var opts = $(this).combobox('options');
+                                        return row[opts.textField].indexOf(q) != -1;
+                                    }
+                                }
+
+                            },
+                            width:150">引用字段
+                            </th>
+                        </tr>
+                        </thead>
+                    </table>
+                </div>
             </div>
         </div>
     </form>
     <div id="advDialog-buttons">
-        <a href="javascript:void(0)" class="easyui-linkbutton" id="addSaveButton"
+        <a href="javascript:void(0)" class="easyui-linkbutton" id="advSaveButton"
            data-options="iconCls:'icon-save',plain:true">保存</a>
         <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
            onclick="javascript:$('#advDialog').dialog('close')">取消</a>

@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jfinal.kit.PathKit;
 import com.jfinal.kit.StrKit;
+import com.sun.org.apache.bcel.internal.generic.POP;
 import com.v246.commonWebFramework.dao.DictionaryModel;
 import com.v246.commonWebFramework.dao.MenuModel;
+import com.v246.commonWebFramework.dao.PopGridSqlModel;
 import com.v246.commonWebFramework.utils.createCode.pojo.ColumnPojo;
 import com.v246.commonWebFramework.utils.createCode.pojo.TableConfig;
 import freemarker.cache.FileTemplateLoader;
@@ -114,7 +116,31 @@ public class EasyUICreateCode implements  ICreateCode{
                         columnPojo.setAllowEdit(myjo.path("allowEdit").asText().equalsIgnoreCase("是"));
                     }
                     if (myjo.has("inputType")&&StrKit.notBlank(myjo.path("inputType").asText())) {
-                        columnPojo.setInputType(myjo.path("inputType").asText());
+                        String inputType = myjo.path("inputType").asText();
+                        columnPojo.setInputType(inputType);
+                        if("selectInput".equalsIgnoreCase(inputType)){
+                            tableConfig.setHasSelectInput(true);
+                            String selectInputConfig = myjo.path("selectInputConfig").asText();
+                            String inputSql = myjo.path("inputSql").asText();
+                            String sqlCode  = tableConfig.getTableAliasName()+"_"+columnPojo.getColumnName();
+                            Map<Object, Object> mp = new HashMap<Object, Object>();
+                            String[] myarr = selectInputConfig.split(",");
+                            for(int j=0;j<myarr.length;j++){
+                                String[] myarrtmp = myarr[j].split(":");
+                                mp.put(myarrtmp[0],myarrtmp[1]);
+                            }
+                            columnPojo.setSelectInputConfig(mp);
+                            PopGridSqlModel ml = PopGridSqlModel.dao.findFirst("SELECT * FROM acyframework_popgridsql where code=?", sqlCode);
+                            if(ml!=null){
+                                ml.set("sqlStr",inputSql);
+                                ml.update();
+                            }else{
+                                ml = new PopGridSqlModel();
+                                ml.set("sqlStr",inputSql);
+                                ml.set("code",sqlCode);
+                                ml.save();
+                            }
+                        }
                     }
                     if (myjo.has("validateType")&&StrKit.notBlank(myjo.path("validateType").asText())) {
                         columnPojo.setValidateType(myjo.path("validateType").asText());

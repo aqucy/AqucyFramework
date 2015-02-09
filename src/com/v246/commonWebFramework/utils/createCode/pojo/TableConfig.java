@@ -21,6 +21,15 @@ public class TableConfig {
     private int maxQueryColumnLen = 0;
     private String tableAliasName;
     private long subViewObjectId;
+    private boolean hasSelectInput = false;
+
+    public boolean isHasSelectInput() {
+        return hasSelectInput;
+    }
+
+    public void setHasSelectInput(boolean hasSelectInput) {
+        this.hasSelectInput = hasSelectInput;
+    }
 
     public long getSubViewObjectId() {
         return subViewObjectId;

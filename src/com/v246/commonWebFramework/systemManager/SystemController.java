@@ -334,6 +334,39 @@ public class SystemController extends Controller {
         }
 
     }
+    public  void validateSelectInputSql(){
+        String sql = getPara("sql");
+        Map jo = new HashMap();
+        List list = new ArrayList();
+        jo.put("errcode", 0);
+        if(StrKit.isBlank(sql)){
+            jo.put("errcode", 1);
+            jo.put("errmsg", "sql语句不能为空");
+        }else{
+            AqucyTools tools = new AqucyTools();
+            try {
+                Map<String,String> map = tools.getColumns(sql);
+                if(map.size()>0){
+                    Iterator<String> it = map.keySet().iterator();
+                    while (it.hasNext()) {
+                        String k = it.next();
+                        Map m = new HashMap();
+                        m.put("label", k);
+                        m.put("value",k);
+                        list.add(m);
+                    }
+                    jo.put("datas", list);
+                }else{
+                    jo.put("errcode", 1);
+                    jo.put("errmsg", "sql语句有错误!");
+                }
+            }catch (Exception e){
+                jo.put("errcode", 1);
+                jo.put("errmsg", "sql语句有错误!\n"+e.getMessage());
+            }
+        }
+        renderJson(jo);
+    }
     private void test(Object... params){
         System.out.println(params.getClass());
         for(Object str:params){

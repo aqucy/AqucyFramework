@@ -32,22 +32,58 @@
         $.parser.auto = false;
         var del, subDel;
         var init = true;
-        function showCombboxData(itemId,code){
-           var data = $("#"+itemId).combobox("getData");
-            if(data==null||data==""){
-                $("#"+itemId).combobox("reload","/getDict?code="+code);
+        var pop;
+        function showCombboxData(itemId, code) {
+            var data = $("#" + itemId).combobox("getData");
+            if (data == null || data == "") {
+                $("#" + itemId).combobox("reload", "/getDict?code=" + code);
             }
         }
         $.parser.onComplete = function (context) {
-            $("#Loading").css("display","none");
+            $("#Loading").css("display", "none");
         };
         $(document).ready(function () {
+        <#if tableConfig.hasSelectInput>
+            pop = function (sqlCode, columnName, op) {
+                popGrid(sqlCode, popCallBack, columnName, op);
+            };
+            function popCallBack(row) {
+                var col = $("#popdg").datagrid('options')["columnName"];
+                var op = $("#popdg").datagrid('options')["op"];
+                var json;
+                if (op == "add") {
+                    json = $("#addForm").serializeJson();
+                    <#list tableConfig.allAddPojos as pojo>
+                        <#if pojo.inputType??&&pojo.inputType=="selectInput">
+                            if (col == '${pojo.columnName}') {
+                                <#list   pojo.selectInputConfig?keys as mk>
+                                    json['${tableConfig.tableAliasName}.${mk}'] = row["${pojo.selectInputConfig[mk]}"];
+                                </#list>
+                            }
+                        </#if>
+                    </#list>
+                    $("#addForm").form("load", json);
+                } else {
+                    json = $("#editForm").serializeJson();
+                    <#list tableConfig.allAddPojos as pojo>
+                        <#if pojo.inputType??&&pojo.inputType=="selectInput">
+                            if (col == '${pojo.columnName}') {
+                                <#list   pojo.selectInputConfig?keys as mk>
+                                    json['${tableConfig.tableAliasName}.${mk}'] = row["${pojo.selectInputConfig[mk]}"];
+                                </#list>
+                            }
+                        </#if>
+                    </#list>
+                    $("#editForm").form("load", json);
+                }
+            }
+        </#if>
             /////////////////////////字典匹配////////////////////////////////////////////////////
         <#if tableConfig.dicts?exists>
             <#list  tableConfig.dicts?keys as key>
                 function render_${acy[key]}(value) {
                     <#list  tableConfig.dicts[key] as obj>
-                        if(value=='${obj.value}'){
+                        if (value == '${obj.value}') {
                             return "${obj.label}";
                         }
                     </#list>
@@ -55,7 +91,7 @@
 
             </#list>
         </#if>
-                function createDataGrid() {
+            function createDataGrid() {
                 var initUrl = '/project/${tableConfig.tableAliasName}?op=view';
                 initUrl = encodeURI(initUrl);
                 $('#dg').datagrid(
@@ -71,7 +107,7 @@
                             singleSelect: false,
                             selectOnCheck: true,
                             sortName: 'id',
-                            pageList: [10, 30, 50, 100,300,500,800,1000],
+                            pageList: [10, 30, 50, 100, 300, 500, 800, 1000],
                             sortOrder: 'desc',
                             ctrlSelect: true,
                             rownumbers: true,
@@ -117,7 +153,7 @@
                                 rowid = rowData.id;
                                 gridname = 'dg';
                             },
-                            onDblClickRow:function(index,row){
+                            onDblClickRow: function (index, row) {
                                 view();
                             }
                         });
@@ -208,23 +244,26 @@
                                 rowid = rowData.id;
                                 gridname = 'subdg';
                             },
-                            onDblClickRow:function(index,row){
+                            onDblClickRow: function (index, row) {
                                 $("#subView").trigger("click");
                             }
                         });
             }
         </#if>
-            function createPopDataGrid(code,callback) {
-                var url = "/systemManager/userManager?op=popGrid&popGridCode="+code;
+        <#if tableConfig.hasSelectInput>
+            function createPopDataGrid(code, callback, columnName, op) {
+                var url = "/project/${tableConfig.tableAliasName}?op=popGrid&popGridCode=" + code;
                 var init = true;
                 $('#popdg').datagrid(
                         {
-                            url:url,
+                            url: url,
                             idField: 'id',
                             fit: true,
                             fitColumns: true,
                             pageSize: 10,
-                            callback:callback,
+                            callback: callback,
+                            columnName: columnName,
+                            op: op,
                             pagination: true,
                             singleSelect: false,
                             selectOnCheck: true,
@@ -236,9 +275,9 @@
                             showFooter: true,
                             frozenColumns: [[]],
                             onLoadSuccess: function (data) {
-                                if(init){
+                                if (init) {
                                     init = false;
-                                }else if(data.datas){
+                                } else if (data.datas) {
                                     $("#popdg").datagrid("loadData", data.datas);
                                 }
                                 $("#popdg").datagrid("clearSelections");
@@ -247,16 +286,17 @@
                                 rowid = rowData.id;
                                 gridname = 'popdg';
                             },
-                            onBeforeLoad:function(params){
-                                if(init){
+                            onBeforeLoad: function (params) {
+                                if (init) {
                                     return false;
                                 }
                             },
-                            onDblClickRow:function(index,row){
+                            onDblClickRow: function (index, row) {
                                 popdgSelOk();
                             }
                         });
             }
+        </#if>
             createDataGrid();
             //提示信息
             function showMsg(msg) {
@@ -367,9 +407,10 @@
                 }
                 for (var k in row) {
                     var str = row[k] ? row[k] : "";
-                    if (k == "") {
+                if (k == "")
+                {
 
-                    }
+                }
                 <#if tableConfig.dicts?exists>
                     <#list  tableConfig.dicts?keys as key>
                     else if (k == "${acy[key]}") {
@@ -415,24 +456,26 @@
             function refresh() {
                 $("#dg").datagrid("load", $("#searchForm").serializeJson());
             }
+        <#if tableConfig.hasSelectInput>
             //弹出选择
-            function popGrid(code,callback){
-                $('#popGrid').css("display","none");
+            function popGrid(code, callback, columnName, op) {
+                $('#popGrid').css("display", "none");
                 var json = {};
                 $(json).attr("popGridCode", code);
                 $('#popGridSearchForm').form('load', json);
                 $('#popGrid').dialog('open').dialog('setTitle', '查看');
-                var url = "/systemManager/${tableConfig.tableAliasName}?op=popGrid&popGridCode="+code;
+                var url = "/project/${tableConfig.tableAliasName}?op=popGrid&popGridCode=" + code;
                 $.get(url,
                         function (data) {
-                            createPopDataGrid(code,callback);
+                            createPopDataGrid(code, callback, columnName, op);
                             $("#popdg").datagrid({
                                 columns: [data.columns]
                             });
                             $("#popdg").datagrid("loadData", data.datas);
-                            $('#popGrid').css("display","");
+                            $('#popGrid').css("display", "");
                         }, 'json');
             }
+
             //弹出选择_查询
             $("#popSearchButton").click(function () {
                 $("#popdg").datagrid("load", $("#popGridSearchForm").serializeJson());
@@ -447,7 +490,7 @@
                 $("#popdg").datagrid("load", $("#popGridSearchForm").serializeJson());
             });
             //弹出选择_确认选择
-            function popdgSelOk(){
+            function popdgSelOk() {
                 var cb = $("#popdg").datagrid('options')["callback"];
                 var row = $('#popdg').datagrid('getSelected');
                 if (row != null) {
@@ -457,16 +500,15 @@
                     $.messager.alert("注意", "请选择一条数据!", "info");
                 }
             }
+
             //弹出选择_选择
-            $("#popSelItButton").click(function(){
+            $("#popSelItButton").click(function () {
                 popdgSelOk();
             });
+        </#if>
             //刷新
             $("#refresh").click(function () {
                 refresh();
-                popGrid("findtest",function(row){
-                        alert(row["address"]);
-                })
             });
 
             //重置
@@ -517,7 +559,7 @@
             $("#delete").click(function () {
                 del();
             });
-<#if tableConfig.subViewObjectId gt 0>
+        <#if tableConfig.subViewObjectId gt 0>
             ///////////////////////////////////////////////子表操作////////////////////////////////////////
             function getSubDataGridSelectedRow() {
                 var row = $('#subdg').datagrid('getSelected');
@@ -705,16 +747,18 @@
             $("#subDelete").click(function () {
                 subDel();
             });
-</#if>
+        </#if>
             init = false;
-            setTimeout(function(){
+            setTimeout(function () {
                 $.parser.parse();
-            },1000);
+            }, 1000);
         });
     </script>
 </head>
 <body>
-<div id='Loading' style="position:absolute;z-index:1000;top:0px;left:0px;width:100%;height:100%;background:#DDDDDB;text-align:center;padding-top: 20%;"><h1><img src="/js/easyui/themes/gray/images/loading.gif"><font color="#15428B">加载中···</font></h1></div>
+<div id='Loading'
+     style="position:absolute;z-index:1000;top:0px;left:0px;width:100%;height:100%;background:#DDDDDB;text-align:center;padding-top: 20%;">
+    <h1><img src="/js/easyui/themes/gray/images/loading.gif"><font color="#15428B">加载中···</font></h1></div>
 <table width="100%" id="dg" toolbar="#dg_tb"></table>
 <div id="dg_tb" style="padding:3px; height: auto">
     <div style="height:30px;" class="datagrid-toolbar">
@@ -733,67 +777,7 @@
         <form id="searchForm" action="/systemManager/userManager" method="post">
             <input type="hidden" name="op" value="view"/>
             <table style="font-size: 12px;text-align: right">
-<#list tableConfig.allQueryPojos as pojo>
-    <#if pojo.maxLength gt 0 && pojo.validateType??>
-        <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
-    <#elseif pojo.maxLength gt 0>
-        <#assign validate=",validType:{length:[0,${pojo.maxLength}]}">
-    <#elseif pojo.validateType??>
-        <#assign validate=",validType:'${pojo.validateType}'">
-    <#else>
-        <#assign validate="">
-    </#if>
-    <#assign tdCount=tdCount+1>
-            <#if pojo_index%3==0&&pojo_has_next>
-                <tr>
-            </#if>
-                    <td>${pojo.displayName}:</td>
-                    <td class="tdRightPadding">
-                    <#if tdCount==3&&!pojo_has_next>
-                        <#assign inputStyle="style='width:110px'">
-                    <#else>
-                        <#assign inputStyle="">
-                    </#if>
-                    <#if pojo.dictCode??>
-                        <input id="search_${pojo.columnName}" ${inputStyle}  class="easyui-combobox" name="${tableConfig.tableAliasName}.${pojo.columnName}"
-                               data-options="
-                     onShowPanel:function(){showCombboxData('search_${pojo.columnName}','${pojo.dictCode}')},
-                    method:'get',
-                    required:false,
-                    valueField:'value',
-                    textField:'label',
-                    editable:false,
-                    panelHeight:'auto'${validate}">
-                    <#else>
-                        <input  ${inputStyle}  name="${tableConfig.tableAliasName}.${pojo.columnName}" data-options="required:false${validate}" class="f1 easyui-textbox"/>
-                    </#if>
-                    <#if tdCount==3&&!pojo_has_next>
-                        <a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find"></a><a
-                            href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase"></a>
-                        </td>
-                    <#elseif !pojo_has_next>
-                        </td>
-                        <td></td>
-                        <td><a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find">查询</a><a
-                                href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase">重置</a></td>
-                    <#else>
-                        </td>
-                    </#if>
-            <#if tdCount==3||!pojo_has_next>
-                <#assign tdCount=0>
-                </tr>
-            </#if>
-</#list>
-            </table>
-        </form>
-    </div>
-</div>
-    <div id="addDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
-         data-options="closed:true,buttons:'#addDialog-buttons',modal:true,iconCls:'icon-add'">
-        <form id="addForm" action="/systemManager/userManager" method="post">
-            <input type="hidden" name="op" value="add"/>
-            <table style="font-size: 12px;text-align: right">
-            <#list tableConfig.allAddPojos as pojo>
+            <#list tableConfig.allQueryPojos as pojo>
                 <#if pojo.maxLength gt 0 && pojo.validateType??>
                     <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
                 <#elseif pojo.maxLength gt 0>
@@ -815,7 +799,70 @@
                     <#assign inputStyle="">
                 </#if>
                 <#if pojo.dictCode??>
-                    <input id="add_${pojo.columnName}" ${inputStyle}  class="easyui-combobox" name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                    <input id="search_${pojo.columnName}" ${inputStyle}  class="easyui-combobox"
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="
+                     onShowPanel:function(){showCombboxData('search_${pojo.columnName}','${pojo.dictCode}')},
+                    method:'get',
+                    required:false,
+                    valueField:'value',
+                    textField:'label',
+                    editable:false,
+                    panelHeight:'auto'${validate}">
+                <#else>
+                    <input  ${inputStyle}  name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                                           data-options="required:false${validate}" class="f1 easyui-textbox"/>
+                </#if>
+                <#if tdCount==3&&!pojo_has_next>
+                    <a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find"></a><a
+                        href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase"></a>
+                </td>
+                <#elseif !pojo_has_next>
+                    </td>
+                    <td></td>
+                    <td><a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find">查询</a><a
+                            href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase">重置</a></td>
+                <#else>
+                    </td>
+                </#if>
+                <#if tdCount==3||!pojo_has_next>
+                    <#assign tdCount=0>
+                </tr>
+                </#if>
+            </#list>
+            </table>
+        </form>
+    </div>
+</div>
+<div id="addDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+     data-options="closed:true,buttons:'#addDialog-buttons',modal:true,iconCls:'icon-add'">
+    <form id="addForm" action="/systemManager/userManager" method="post">
+        <input type="hidden" name="op" value="add"/>
+        <table style="font-size: 12px;text-align: right">
+        <#list tableConfig.allAddPojos as pojo>
+            <#if pojo.maxLength gt 0 && pojo.validateType??>
+                <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
+            <#elseif pojo.maxLength gt 0>
+                <#assign validate=",validType:{length:[0,${pojo.maxLength}]}">
+            <#elseif pojo.validateType??>
+                <#assign validate=",validType:'${pojo.validateType}'">
+            <#else>
+                <#assign validate="">
+            </#if>
+            <#assign tdCount=tdCount+1>
+            <#if pojo_index%3==0&&pojo_has_next>
+            <tr>
+            </#if>
+            <td>${pojo.displayName}:</td>
+            <td class="tdRightPadding">
+                <#if tdCount==3&&!pojo_has_next>
+                    <#assign inputStyle="style='width:110px'">
+                <#else>
+                    <#assign inputStyle="">
+                </#if>
+                <#if pojo.dictCode??>
+                    <input id="add_${pojo.columnName}" ${inputStyle}  class="easyui-combobox"
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
                            data-options="
                      onShowPanel:function(){showCombboxData('add_${pojo.columnName}','${pojo.dictCode}')},
                     method:'get',
@@ -824,56 +871,64 @@
                     textField:'label',
                     editable:false,
                     panelHeight:'auto'${validate}">
+                <#elseif pojo.inputType??&&pojo.inputType=="selectInput">
+                    <input id="add_${pojo.columnName}" ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
+                           data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','add')}"
+                           style="width:170px;height:24px;">
                 <#else>
-                    <input  ${inputStyle}  name="${tableConfig.tableAliasName}.${pojo.columnName}" data-options="required:${pojo.required?c}${validate}" class="f1 easyui-textbox"/>
+                    <input id="add_${pojo.columnName}"  ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="required:${pojo.required?c}${validate}" class="f1 easyui-textbox"/>
                 </#if>
-                </td>
-                <#if tdCount==3||!pojo_has_next>
-                    <#assign tdCount=0>
-                </tr>
-                </#if>
-            </#list>
+            </td>
+            <#if tdCount==3||!pojo_has_next>
+                <#assign tdCount=0>
+            </tr>
+            </#if>
+        </#list>
 
-            </table>
-        </form>
-        <div id="addDialog-buttons">
-            <a href="javascript:void(0)" class="easyui-linkbutton" id="addSaveButton"
-               data-options="iconCls:'icon-save',plain:true">保存</a>
-            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
-               onclick="javascript:$('#addDialog').dialog('close')">取消</a>
-        </div>
+        </table>
+    </form>
+    <div id="addDialog-buttons">
+        <a href="javascript:void(0)" class="easyui-linkbutton" id="addSaveButton"
+           data-options="iconCls:'icon-save',plain:true">保存</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:$('#addDialog').dialog('close')">取消</a>
     </div>
-    <div id="editDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
-         data-options="closed:true,buttons:'#editDialog-buttons',modal:true,iconCls:'icon-edit'">
-        <form id="editForm" action="/systemManager/userManager" method="post">
-            <input type="hidden" name="op" value="edit"/>
-            <input type="hidden" name="${tableConfig.tableAliasName}.id" value="0"/>
-            <table style="font-size: 12px;text-align: right">
-            <#list tableConfig.allEditPojos as pojo>
-                <#if pojo.maxLength gt 0 && pojo.validateType??>
-                    <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
-                <#elseif pojo.maxLength gt 0>
-                    <#assign validate=",validType:{length:[0,${pojo.maxLength}]}">
-                <#elseif pojo.validateType??>
-                    <#assign validate=",validType:'${pojo.validateType}'">
-                <#else>
-                    <#assign validate="">
-                </#if>
-                <#assign tdCount=tdCount+1>
-                <#if pojo_index%3==0&&pojo_has_next>
-                <tr>
-                </#if>
-                <td>${pojo.displayName}:</td>
-                <td class="tdRightPadding">
+</div>
+<div id="editDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+     data-options="closed:true,buttons:'#editDialog-buttons',modal:true,iconCls:'icon-edit'">
+    <form id="editForm" action="/systemManager/userManager" method="post">
+        <input type="hidden" name="op" value="edit"/>
+        <input type="hidden" name="${tableConfig.tableAliasName}.id" value="0"/>
+        <table style="font-size: 12px;text-align: right">
+        <#list tableConfig.allEditPojos as pojo>
+            <#if pojo.maxLength gt 0 && pojo.validateType??>
+                <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
+            <#elseif pojo.maxLength gt 0>
+                <#assign validate=",validType:{length:[0,${pojo.maxLength}]}">
+            <#elseif pojo.validateType??>
+                <#assign validate=",validType:'${pojo.validateType}'">
+            <#else>
+                <#assign validate="">
+            </#if>
+            <#assign tdCount=tdCount+1>
+            <#if pojo_index%3==0&&pojo_has_next>
+            <tr>
+            </#if>
+            <td>${pojo.displayName}:</td>
+            <td class="tdRightPadding">
 
-                    <#if tdCount==3&&!pojo_has_next>
-                        <#assign inputStyle="style='width:110px'">
-                    <#else>
-                        <#assign inputStyle="">
-                    </#if>
-                    <#if pojo.dictCode??>
-                        <input id="edit_${pojo.columnName}" ${inputStyle}  class="easyui-combobox" name="${tableConfig.tableAliasName}.${pojo.columnName}"
-                               data-options="
+                <#if tdCount==3&&!pojo_has_next>
+                    <#assign inputStyle="style='width:110px'">
+                <#else>
+                    <#assign inputStyle="">
+                </#if>
+                <#if pojo.dictCode??>
+                    <input id="edit_${pojo.columnName}" ${inputStyle}  class="easyui-combobox"
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="
                      onShowPanel:function(){showCombboxData('edit_${pojo.columnName}','${pojo.dictCode}')},
                     method:'get',
                     required:${pojo.required?c},
@@ -881,45 +936,52 @@
                     textField:'label',
                     editable:false,
                     panelHeight:'auto'${validate}">
-                    <#else>
-                        <input  ${inputStyle}  name="${tableConfig.tableAliasName}.${pojo.columnName}" data-options="required:${pojo.required?c}${validate}" class="f1 easyui-textbox"/>
-                    </#if>
-                </td>
-                <#if tdCount==3||!pojo_has_next>
-                    <#assign tdCount=0>
-                </tr>
+                <#elseif pojo.inputType??&&pojo.inputType=="selectInput">
+                    <input id="edit_${pojo.columnName}" ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
+                           data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','edit')}"
+                           style="width:170px;height:24px;">
+                <#else>
+                    <input id="edit_${pojo.columnName}"  ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="required:${pojo.required?c}${validate}" class="f1 easyui-textbox"/>
                 </#if>
-            </#list>
-            </table>
-        </form>
-        <div id="editDialog-buttons">
-            <a href="javascript:void(0)" class="easyui-linkbutton" id="editSaveButton"
-               data-options="iconCls:'icon-save',plain:true">保存</a>
-            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
-               onclick="javascript:$('#editDialog').dialog('close')">取消</a>
-        </div>
-    </div>
-    <div id="viewDialog" class="easyui-dialog" style="width: 800px; ${subTableDialogHeight} padding: 10px 20px"
-         data-options="closed:true,buttons:'#viewDialog-buttons',modal:true,iconCls:'icon-search'">
-        <table style="font-size: 12px;text-align: right" id="subable">
-        <#list tableConfig.allEditPojos as pojo>
-            <#assign tdCount=tdCount+1>
-            <#if pojo_index%3==0&&pojo_has_next>
-            <tr>
-            </#if>
-            <td>${pojo.displayName}:</td>
-            <td class="tdRightPadding" id="view_${pojo.columnName}"></td>
+            </td>
             <#if tdCount==3||!pojo_has_next>
                 <#assign tdCount=0>
             </tr>
             </#if>
         </#list>
         </table>
+    </form>
+    <div id="editDialog-buttons">
+        <a href="javascript:void(0)" class="easyui-linkbutton" id="editSaveButton"
+           data-options="iconCls:'icon-save',plain:true">保存</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:$('#editDialog').dialog('close')">取消</a>
+    </div>
+</div>
+<div id="viewDialog" class="easyui-dialog" style="width: 800px; ${subTableDialogHeight} padding: 10px 20px"
+     data-options="closed:true,buttons:'#viewDialog-buttons',modal:true,iconCls:'icon-search'">
+    <table style="font-size: 12px;text-align: right" id="subable">
+    <#list tableConfig.allEditPojos as pojo>
+        <#assign tdCount=tdCount+1>
+        <#if pojo_index%3==0&&pojo_has_next>
+        <tr>
+        </#if>
+        <td>${pojo.displayName}:</td>
+        <td class="tdRightPadding" id="view_${pojo.columnName}"></td>
+        <#if tdCount==3||!pojo_has_next>
+            <#assign tdCount=0>
+        </tr>
+        </#if>
+    </#list>
+    </table>
 <#if tableConfig.subViewObjectId gt 0>
-        <div id="subdgdiv">
-            <div id="subdg" toolbar="#subdg_tb"/>
-            <div id="subdg_tb" style="padding:3px; height: auto">
-                <div style="height:30px;" class="datagrid-toolbar">
+    <div id="subdgdiv">
+        <div id="subdg" toolbar="#subdg_tb"/>
+        <div id="subdg_tb" style="padding:3px; height: auto">
+            <div style="height:30px;" class="datagrid-toolbar">
 	<span style="float:left;">
 
 	<a id="subAdd" href="javascript:" class="easyui-linkbutton" plain="true" icon="add">添加</a>
@@ -929,25 +991,26 @@
         <a id="subRefresh" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">刷新</a>
 
 	</span>
-                </div>
-                <div name="searchPanel">
+            </div>
+            <div name="searchPanel">
 
-                    <form id="subSearchForm" action="/systemManager/userManager" method="post">
-                        <input type="hidden" name="op" value="view"/>
-                        <table style="font-size: 12px;text-align: right">
-                            <tr>
-                                <td>店铺名称:</td>
-                                <td class="tdRightPadding"><input name="addasShop.shopName"
-                                                                  data-options="validType:{length:[3,15]}"
-                                                                  class="f1 easyui-textbox"/></td>
-                                <td>地址:</td>
-                                <td class="tdRightPadding"><input name="addasShop.address" class="f1 easyui-textbox"
-                                                                  data-options="validType:['length[6,18]']"/>
-                                </td>
-                                <td>状态:</td>
-                                <td class="tdRightPadding"><input id="subSearch_status" style="width: 110px;" class="easyui-combobox"
-                                                                  name="user.status"
-                                                                  data-options="
+                <form id="subSearchForm" action="/systemManager/userManager" method="post">
+                    <input type="hidden" name="op" value="view"/>
+                    <table style="font-size: 12px;text-align: right">
+                        <tr>
+                            <td>店铺名称:</td>
+                            <td class="tdRightPadding"><input name="addasShop.shopName"
+                                                              data-options="validType:{length:[3,15]}"
+                                                              class="f1 easyui-textbox"/></td>
+                            <td>地址:</td>
+                            <td class="tdRightPadding"><input name="addasShop.address" class="f1 easyui-textbox"
+                                                              data-options="validType:['length[6,18]']"/>
+                            </td>
+                            <td>状态:</td>
+                            <td class="tdRightPadding"><input id="subSearch_status" style="width: 110px;"
+                                                              class="easyui-combobox"
+                                                              name="user.status"
+                                                              data-options="
                     onShowPanel:function(){showCombboxData('subSearch_status','acyframework_users_status')},
                     method:'get',
                     valueField:'value',
@@ -955,24 +1018,24 @@
                     editable:false,
                     panelHeight:'auto'">
 
-                                    <a href="javascript:" title="查询" id="subSearchButton" class="easyui-linkbutton"
-                                       icon="find"></a><a
-                                            href="javascript:" title="重置" id="subResetButton" class="easyui-linkbutton"
-                                            icon="erase"></a>
+                                <a href="javascript:" title="查询" id="subSearchButton" class="easyui-linkbutton"
+                                   icon="find"></a><a
+                                        href="javascript:" title="重置" id="subResetButton" class="easyui-linkbutton"
+                                        icon="erase"></a>
 
-                                </td>
-                            </tr>
-                        </table>
-                    </form>
-                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
             </div>
         </div>
-</#if>
-        <div id="viewDialog-buttons">
-            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
-               onclick="javascript:$('#viewDialog').dialog('close')">取消</a>
-        </div>
     </div>
+</#if>
+    <div id="viewDialog-buttons">
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:$('#viewDialog').dialog('close')">取消</a>
+    </div>
+</div>
 <#if tableConfig.subViewObjectId gt 0>
 <div id="subdlgs">
     <div id="subAddDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
@@ -995,7 +1058,8 @@
                 </tr>
                 <tr>
                     <td>性别:</td>
-                    <td class="tdRightPadding"><input id="subAdd_sex" required="true" class="easyui-combobox" name="user.sex"
+                    <td class="tdRightPadding"><input id="subAdd_sex" required="true" class="easyui-combobox"
+                                                      name="user.sex"
                                                       data-options="
                     onShowPanel:function(){showCombboxData('subAdd_sex','acyframework_users_sex')},
                     method:'get',
@@ -1005,7 +1069,8 @@
                     panelHeight:'auto'">
                     </td>
                     <td>状态:</td>
-                    <td class="tdRightPadding"><input id="subAdd_status" required="true" class="easyui-combobox" name="user.status"
+                    <td class="tdRightPadding"><input id="subAdd_status" required="true" class="easyui-combobox"
+                                                      name="user.status"
                                                       data-options="
                     onShowPanel:function(){showCombboxData('subAdd_status','acyframework_users_status')},
                     method:'get',
@@ -1063,7 +1128,8 @@
                 </tr>
                 <tr>
                     <td>性别:</td>
-                    <td class="tdRightPadding"><input id="subEdit_sex" required="true" class="easyui-combobox" name="user.sex"
+                    <td class="tdRightPadding"><input id="subEdit_sex" required="true" class="easyui-combobox"
+                                                      name="user.sex"
                                                       data-options="
                     onShowPanel:function(){showCombboxData('subEdit_sex','acyframework_users_sex')},
                     method:'get',
@@ -1073,7 +1139,8 @@
                     panelHeight:'auto'">
                     </td>
                     <td>状态:</td>
-                    <td class="tdRightPadding"><input required="true" id="subEdit_status" class="easyui-combobox" name="user.status"
+                    <td class="tdRightPadding"><input required="true" id="subEdit_status" class="easyui-combobox"
+                                                      name="user.status"
                                                       data-options="
                     onShowPanel:function(){showCombboxData('subEdit_status','acyframework_users_status')},
                     method:'get',
@@ -1138,31 +1205,34 @@
                onclick="javascript:$('#subViewDialog').dialog('close')">取消</a>
         </div>
     </div>
-    <div id="popGrid" class="easyui-dialog" style="width: 800px; height: 400px; padding: 10px 20px"
-         data-options="closed:true,buttons:'#popGridDialog-buttons',modal:true,iconCls:'icon-search'">
+</div>
+</#if>
+<#if tableConfig.hasSelectInput>
+<div id="popGrid" class="easyui-dialog" style="width: 800px; height: 400px; padding: 10px 20px"
+     data-options="closed:true,buttons:'#popGridDialog-buttons',modal:true,iconCls:'icon-search'">
 
-        <div id="popdg" toolbar="#popdg_tb"/>
-        <div id="popdg_tb" style="padding:3px; height: auto">
-            <div name="searchPanel">
+    <div id="popdg" toolbar="#popdg_tb"/>
+    <div id="popdg_tb" style="padding:3px; height: auto">
+        <div name="searchPanel">
 
-                <form id="popGridSearchForm" action="" method="post">
-                    <input type="hidden" name="op" value="popGrid"/>
-                    <input type="hidden" name="popGridCode" value=""/>
-                    <input name="searchStr"
-                           data-options="validType:{length:[1,255]}"
-                           class="f1 easyui-textbox"/>
-                    <a href="javascript:" id="popSearchButton" class="easyui-linkbutton" icon="find">查询</a>
-                    <a href="javascript:" id="popResetButton" class="easyui-linkbutton" icon="erase">重置</a>
-                    <a id="popRefreshButton" href="javascript:" class="easyui-linkbutton"  icon="arrowrefresh">刷新</a>
-                </form>
-            </div>
+            <form id="popGridSearchForm" action="" method="post">
+                <input type="hidden" name="op" value="popGrid"/>
+                <input type="hidden" name="popGridCode" value=""/>
+                <input name="searchStr"
+                       data-options="validType:{length:[1,255]}"
+                       class="f1 easyui-textbox"/>
+                <a href="javascript:" id="popSearchButton" class="easyui-linkbutton" icon="find">查询</a>
+                <a href="javascript:" id="popResetButton" class="easyui-linkbutton" icon="erase">重置</a>
+                <a id="popRefreshButton" href="javascript:" class="easyui-linkbutton" icon="arrowrefresh">刷新</a>
+            </form>
         </div>
+    </div>
 
-        <div id="popGridDialog-buttons">
-            <a href="javascript:void(0)" class="easyui-linkbutton" id="popSelItButton" data-options="iconCls:'accept',plain:true">选择</a>
-            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
-               onclick="javascript:$('#popGrid').dialog('close')">取消</a>
-        </div>
+    <div id="popGridDialog-buttons">
+        <a href="javascript:void(0)" class="easyui-linkbutton" id="popSelItButton"
+           data-options="iconCls:'accept',plain:true">选择</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:$('#popGrid').dialog('close')">取消</a>
     </div>
 </div>
 </#if>

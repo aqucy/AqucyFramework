@@ -2,6 +2,9 @@ package com.v246.commonWebFramework.utils.createCode.pojo;
 
 import com.jfinal.kit.StrKit;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Created by aquaqu on 2015/1/9.
  */
@@ -20,6 +23,15 @@ public class ColumnPojo {
     private String validateType;
     private int minLength;
     private int maxLength;
+    private Map<Object, Object> selectInputConfig;
+
+    public Map<Object, Object> getSelectInputConfig() {
+        return selectInputConfig;
+    }
+
+    public void setSelectInputConfig(Map<Object, Object> selectInputConfig) {
+        this.selectInputConfig = selectInputConfig;
+    }
 
     public int getMinLength() {
         return minLength;

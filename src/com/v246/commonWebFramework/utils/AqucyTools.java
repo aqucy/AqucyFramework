@@ -196,7 +196,7 @@ public class AqucyTools {
             }
         }
     }
-    private Map<String,String> getColumns(String sql){
+    public Map<String,String> getColumns(String sql) throws Exception{
         Map<String, String> columnMap = new HashMap<String, String>();
         try {
             Select select = (Select) parserManager.parse(new StringReader(sql));
@@ -221,7 +221,7 @@ public class AqucyTools {
                 }
             }
         } catch (JSQLParserException e) {
-            e.printStackTrace();
+            throw (e);
         }
         return columnMap;
     }

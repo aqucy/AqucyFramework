@@ -29,7 +29,7 @@ me.add("/project/shangPin", ShangPinController.class);
     }
 
     public void configPlugin(Plugins me) {
-        C3p0Plugin dsMysql = new C3p0Plugin("jdbc:mysql://hy.v246.com:3306/acyFramework?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull", "acy", "acy123", "com.mysql.jdbc.Driver");
+        C3p0Plugin dsMysql = new C3p0Plugin("jdbc:mysql://mysqlDatabase?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull", "userName", "password", "com.mysql.jdbc.Driver");
         me.add(dsMysql);
         ActiveRecordPlugin arpMysql = new ActiveRecordPlugin("acyFramework", dsMysql);
         arpMysql.setDialect(new AnsiSqlDialect());
