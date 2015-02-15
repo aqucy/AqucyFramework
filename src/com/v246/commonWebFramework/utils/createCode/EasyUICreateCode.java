@@ -2,12 +2,13 @@ package com.v246.commonWebFramework.utils.createCode;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jfinal.kit.JsonKit;
 import com.jfinal.kit.PathKit;
 import com.jfinal.kit.StrKit;
+import com.jfinal.plugin.activerecord.Table;
 import com.sun.org.apache.bcel.internal.generic.POP;
-import com.v246.commonWebFramework.dao.DictionaryModel;
-import com.v246.commonWebFramework.dao.MenuModel;
-import com.v246.commonWebFramework.dao.PopGridSqlModel;
+import com.v246.commonWebFramework.dao.*;
+import com.v246.commonWebFramework.utils.AqucyTools;
 import com.v246.commonWebFramework.utils.createCode.pojo.ColumnPojo;
 import com.v246.commonWebFramework.utils.createCode.pojo.TableConfig;
 import freemarker.cache.FileTemplateLoader;
@@ -28,164 +29,32 @@ public class EasyUICreateCode implements  ICreateCode{
     public String createCode(String jsonString){
         String re = null;
         try {
-            Map root = new HashMap();
-            Map data = new HashMap();
-            StringBuffer columnString = new StringBuffer(100);
-            StringBuffer displayColumnString = new StringBuffer(100);
-            ObjectMapper om = new ObjectMapper();
-            JsonNode jo = om.readTree(jsonString.trim());
-            List<ColumnPojo> list = new ArrayList<ColumnPojo>();
-            List<ColumnPojo> allowDisplayList = new ArrayList<ColumnPojo>();
-            List<ColumnPojo> allowAddList = new ArrayList<ColumnPojo>();
-            List<ColumnPojo> allowEditList = new ArrayList<ColumnPojo>();
-            List<ColumnPojo> allowQueryList = new ArrayList<ColumnPojo>();
-            TableConfig tableConfig = new TableConfig();
-            Map<String, List<DictionaryModel>> dicts = new HashMap<String, List<DictionaryModel>>();
-            boolean reCreate = false;
-            if (jo.has("tableName")) {
-                tableConfig.setTableName(jo.path("tableName").asText());
+            AqucyTools tools = new AqucyTools();
+            Map<String,Object> root = tools.resolveToRootMap(jsonString);
+            if(root.containsKey("errmsg")){
+                return root.get("errmsg").toString();
             }
-            if (jo.has("alias")) {
-                tableConfig.setTableAliasName(jo.path("alias").asText());
+            TableConfig tableConfig = (TableConfig)root.get("tableConfig");
+            tools.saveConfigToDb(tableConfig);
+            if(tableConfig.getSubViewObjectId()>0){
+                List<ViewObjectColumnConfigModel> list = ViewObjectColumnConfigModel.dao.find("SELECT * FROM acyframework_view_object_columns_config where viewObjectId=?", tableConfig.getSubViewObjectId());
+                Map mp = new HashMap();
+                mp.put("datas",list);
+                ViewObjectModel viewModel = ViewObjectModel.dao.findById(tableConfig.getSubViewObjectId());
+                mp.put("tableName",viewModel.get("tableName"));
+                mp.put("alias",viewModel.get("tableAliasName"));
+                mp.put("title",viewModel.get("title"));
+                mp.put("add",viewModel.get("allowAdd"));
+                mp.put("delete",viewModel.get("allowDelete"));
+                mp.put("edit",viewModel.get("allowEdit"));
+                String json = null;
+                json = JsonKit.toJson(mp);
+                json = json.replace("true", "\"是\"");
+                json = json.replace("false","\"\"");
+                json = json.replace("\"null\"","\"\"");
+                json = json.replace(":null",":\"\"");
+                tableConfig.setSubTableConfig((TableConfig)(tools.resolveToRootMap(json).get("tableConfig")));
             }
-            if (jo.has("reCreate")&&"yes".equalsIgnoreCase(jo.path("reCreate").asText())) {
-                reCreate = true;
-            }
-            if(reCreate==false){
-                File file = new File(PathKit.getWebRootPath() + "/WEB-INF/view/project/" + tableConfig.getTableAliasName() + ".html");
-                if (file.exists()) {
-                    return "别名重复";
-                }
-            }
-            if (jo.has("datas")) {
-                int maxDisplayLen = 0;
-                int maxQueryLen = 0;
-                JsonNode arr = jo.path("datas");
-                for (int i = 0; i < arr.size(); i++) {
-                    ColumnPojo columnPojo = new ColumnPojo();
-                    JsonNode myjo = arr.path(i);
-                    if (myjo.has("displayName")) {
-                        String displayName = myjo.path("displayName").asText();
-                        columnPojo.setDisplayName(displayName);
-                        if(StrKit.notBlank(displayName)){
-                            if(displayName.length()>maxDisplayLen){
-                                maxDisplayLen = displayName.length();
-                            }
-                        }
-                    }
-                    if (myjo.has("columnName")) {
-                        columnPojo.setColumnName(myjo.path("columnName").asText());
-                        columnString.append("'").append(columnPojo.getColumnName()).append("',");
-                    }
-                    if (myjo.has("minLength")) {
-                        String minLen = myjo.path("minLength").asText();
-                        if(StrKit.notBlank(minLen)){
-                            columnPojo.setMinLength(Integer.parseInt(minLen));
-                        }
-                    }
-                    if (myjo.has("maxLength")) {
-                        String maxLength = myjo.path("maxLength").asText();
-                        if(StrKit.notBlank(maxLength)){
-                            columnPojo.setMaxLength(Integer.parseInt(maxLength));
-                        }
-                    }
-                    if (myjo.has("dictCode")) {
-                        String dictCode = myjo.path("dictCode").asText();
-                        if (StrKit.notBlank(dictCode)) {
-                            dicts.put(dictCode, DictionaryModel.dao.find("SELECT k label,v value FROM acyFramework_dictionary where code=?", dictCode));
-                            data.put(dictCode, columnPojo.getColumnName());
-                        }
-                        columnPojo.setDictCode(dictCode);
-                    }
-                    if (myjo.has("reg")&&StrKit.notBlank(myjo.path("reg").asText())) {
-                        columnPojo.setRegex(myjo.path("reg").asText());
-                    }
-                    if (myjo.has("required")) {
-                        columnPojo.setRequired(myjo.path("required").asText().equalsIgnoreCase("是"));
-                    }
-                    if (myjo.has("allowDisplay")) {
-                        columnPojo.setAllowDisplay(myjo.path("allowDisplay").asText().equalsIgnoreCase("是"));
-                        if(StrKit.isBlank(columnPojo.getDisplayName())){
-                            return "列:"+columnPojo.getColumnName()+" 您设置为可显示,但显示内容为空!";
-                        }
-                    }
-                    if (myjo.has("allowAdd")) {
-                        columnPojo.setAllowAdd(myjo.path("allowAdd").asText().equalsIgnoreCase("是"));
-                    }
-                    if (myjo.has("allowEdit")) {
-                        columnPojo.setAllowEdit(myjo.path("allowEdit").asText().equalsIgnoreCase("是"));
-                    }
-                    if (myjo.has("inputType")&&StrKit.notBlank(myjo.path("inputType").asText())) {
-                        String inputType = myjo.path("inputType").asText();
-                        columnPojo.setInputType(inputType);
-                        if("selectInput".equalsIgnoreCase(inputType)){
-                            tableConfig.setHasSelectInput(true);
-                            String selectInputConfig = myjo.path("selectInputConfig").asText();
-                            String inputSql = myjo.path("inputSql").asText();
-                            String sqlCode  = tableConfig.getTableAliasName()+"_"+columnPojo.getColumnName();
-                            Map<Object, Object> mp = new HashMap<Object, Object>();
-                            String[] myarr = selectInputConfig.split(",");
-                            for(int j=0;j<myarr.length;j++){
-                                String[] myarrtmp = myarr[j].split(":");
-                                mp.put(myarrtmp[0],myarrtmp[1]);
-                            }
-                            columnPojo.setSelectInputConfig(mp);
-                            PopGridSqlModel ml = PopGridSqlModel.dao.findFirst("SELECT * FROM acyframework_popgridsql where code=?", sqlCode);
-                            if(ml!=null){
-                                ml.set("sqlStr",inputSql);
-                                ml.update();
-                            }else{
-                                ml = new PopGridSqlModel();
-                                ml.set("sqlStr",inputSql);
-                                ml.set("code",sqlCode);
-                                ml.save();
-                            }
-                        }
-                    }
-                    if (myjo.has("validateType")&&StrKit.notBlank(myjo.path("validateType").asText())) {
-                        columnPojo.setValidateType(myjo.path("validateType").asText());
-                    }
-                    if (myjo.has("regErrMsg")) {
-                        columnPojo.setRegexErrorMsg(myjo.path("regErrMsg").asText());
-                    }
-                    if (myjo.has("allowQuery")) {
-                        boolean allowQuery = "是".equalsIgnoreCase(myjo.path("allowQuery").asText());
-//                        if(StrKit.isBlank(columnPojo.getDisplayName())){
-//                            allowQuery = false;
-//                        }
-                        if(allowQuery&&columnPojo.getDisplayName().length()>maxQueryLen){
-                            maxQueryLen = columnPojo.getDisplayName().length();
-                        }
-                        columnPojo.setAllowQuery(allowQuery);
-                    }
-                    list.add(columnPojo);
-                    if(columnPojo.isAllowAdd()){
-                        allowAddList.add(columnPojo);
-                    }
-                    if(columnPojo.isAllowDisplay()){
-                        allowDisplayList.add(columnPojo);
-                    }
-                    if(columnPojo.isAllowEdit()){
-                        allowEditList.add(columnPojo);
-                    }
-                    if(columnPojo.isAllowQuery()){
-                        allowQueryList.add(columnPojo);
-                    }
-                }
-                tableConfig.setColumnPojos(list);
-                tableConfig.setAllAddPojos(allowAddList);
-                tableConfig.setAllDisplayPojos(allowDisplayList);
-                tableConfig.setAllEditPojos(allowEditList);
-                tableConfig.setAllQueryPojos(allowQueryList);
-                tableConfig.setDicts(dicts);
-                tableConfig.setMaxDisplayColumnLen(++maxDisplayLen);
-                tableConfig.setMaxQueryColumnLen(++maxQueryLen);
-            }
-
-            columnString.deleteCharAt(columnString.length()-1);
-            data.put("columnStr", columnString);
-            root.put("acy", data);
-            root.put("tableConfig",tableConfig);
             createView(root);
             createJava(root);
             //官吏入数据库
@@ -229,8 +98,9 @@ public class EasyUICreateCode implements  ICreateCode{
         StringWriter writer = new StringWriter();
         boolean re = false;
         try {
-            String tableName = ((TableConfig)root.get("tableConfig")).getTableName();
-            String tableAliasName = ((TableConfig)root.get("tableConfig")).getTableAliasName();
+            TableConfig tableConfig = (TableConfig)root.get("tableConfig");
+            String tableName = tableConfig.getTableName();
+            String tableAliasName = tableConfig.getTableAliasName();
             String srcPath = PathKit.getWebRootPath().substring(0, PathKit.getWebRootPath().length() - 4);
             Configuration config = new Configuration();
             String path = "/WEB-INF/codeTemplate/java/jfinal/easyui/Controller.java";
@@ -255,6 +125,22 @@ public class EasyUICreateCode implements  ICreateCode{
             out = new FileOutputStream(file);
             out.write(str.getBytes());
             out.close();
+            //子表model
+            if(tableConfig.getSubTableConfig()!=null){
+                path = "/WEB-INF/codeTemplate/java/jfinal/easyui/SubModel.java";
+                writer = new StringWriter();
+                fileLoader = new FileTemplateLoader(new File(PathKit.getWebRootPath()));
+                config.setTemplateLoader(fileLoader);
+                template = config.getTemplate(path, "UTF-8");
+                template.process(root, writer);
+                str = writer.toString();
+                file = new File(srcPath+"/src/com/v246/project/model/"+StrKit.firstCharToUpperCase(tableConfig.getSubTableConfig().getTableName())+"Model.java");
+                out = new FileOutputStream(file);
+                out.write(str.getBytes());
+                out.close();
+            }
+
+
 
             //向jfinal的配置文件中添加router和model
             String jfinalConfigPath = srcPath+"/src/com/v246/commonWebFramework/MyJfinalConfig.java";
@@ -265,23 +151,39 @@ public class EasyUICreateCode implements  ICreateCode{
                 sb.append(data).append("\n");
                 data = br.readLine(); //接着读下一行
             }
-            String modelClass = StrKit.firstCharToUpperCase(tableAliasName)+"Model.class";
+            String modelClass = StrKit.firstCharToUpperCase(tableName)+"Model.class";
             String modelfullStr = "arpMysql.addMapping(\"{1}\", {2});";
             String  controllerStr = "me.add(\"/project/{1}\", {2}Controller.class);";
+
+            String subModelClass = null;
+            String subModelfullStr = "arpMysql.addMapping(\"{1}\", {2});";
+
+
+
             str = sb.toString();
             if(str.indexOf(modelClass)==-1){
-                modelfullStr = modelfullStr.replace("{1}",tableAliasName).replace("{2}",modelClass);
+                modelfullStr = modelfullStr.replace("{1}",tableName).replace("{2}",modelClass);
                 controllerStr = controllerStr.replace("{1}",tableAliasName).replace("{2}",StrKit.firstCharToUpperCase(tableAliasName));
                 str = str.replace("//{route}",controllerStr+"\n//{route}");
                 str = str.replace("//{model}", modelfullStr + "\n//{model}");
+                if(tableConfig.getSubTableConfig()!=null){
+                    subModelClass = StrKit.firstCharToUpperCase(tableConfig.getSubTableConfig().getTableName())+"Model.class";
+                    if(str.indexOf(subModelClass)!=-1){
+                        subModelfullStr = subModelfullStr.replace("{1}",tableConfig.getSubTableConfig().getTableName()).replace("{2}", subModelClass);
+                        str = str.replace("//{model}", subModelfullStr + "\n//{model}");
+                    }
+                }
                 file = new File(jfinalConfigPath);
                 out = new FileOutputStream(file);
                 out.write(str.getBytes());
                 out.close();
-                //添加菜单
-                MenuModel menu = new MenuModel();
+            }
+            //添加菜单
+            MenuModel menu =  menu = MenuModel.dao.findFirst("SELECT * FROM acyframework_menu where url=?","/project/"+tableAliasName);
+            if(menu==null||menu.getLong("id")<=0){
+                menu = new MenuModel();
                 menu.set("url", "/project/"+tableAliasName);
-                menu.set("text", tableAliasName);
+                menu.set("text", tableConfig.getTitle());
                 menu.set("parentId", 0);
                 menu.save();
             }

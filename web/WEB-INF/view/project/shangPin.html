@@ -71,12 +71,6 @@
                                         width: 120
                                     },
                                     {
-                                        field: 'name',
-                                        title: '商品名称',
-                                        sortable: true,
-                                        width: 120
-                                    },
-                                    {
                                         field: 'pingPai',
                                         title: '品牌',
                                         sortable: true,
@@ -85,6 +79,18 @@
                                     {
                                         field: 'jiaGe',
                                         title: '价格',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'leibie',
+                                        title: '类别',
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                    {
+                                        field: 'shuLiang',
+                                        title: '数量',
                                         sortable: true,
                                         width: 120
                                     },
@@ -108,6 +114,80 @@
                             },
                             onDblClickRow: function (index, row) {
                                 view();
+                            }
+                        });
+            }
+            function createSubDataGrid(pvalue) {
+                var initUrl = '/project/shangPin/subTableManager?op=view&shangPin.managerUserId=' + pvalue;
+                initUrl = encodeURI(initUrl);
+                $('#subdg').datagrid(
+                        {
+
+                            url: initUrl,
+                            idField: 'id',
+                            title: '学生作业',
+                            fit: true,
+                            fitColumns: true,
+                            pageSize: 10,
+                            pagination: true,
+                            singleSelect: false,
+                            selectOnCheck: true,
+                            sortName: 'id',
+                            pageList: [10, 30, 50, 100],
+                            sortOrder: 'desc',
+                            ctrlSelect: true,
+                            rownumbers: true,
+                            showFooter: true,
+                            frozenColumns: [[]],
+                            columns: [
+                                [
+
+                                    {
+                                        field: 'id',
+                                        title: '主键',
+                                        hidden: false,
+                                        checkbox: true,
+                                        sortable: true,
+                                        width: 120
+                                    },
+                                        {
+                                            field: 'shopName',
+                                            title: '店铺名称',
+                                            sortable: true,
+                                            width: 120
+                                        },
+                                        {
+                                            field: 'address',
+                                            title: '地址',
+                                            sortable: true,
+                                            width: 120
+                                        },
+                                        {
+                                            field: 'managerUser',
+                                            title: '管理员',
+                                            sortable: true,
+                                            width: 120
+                                        },
+                                    {
+                                        field: 'opt', title: '操作', width: 200, formatter: function (value, rec, index) {
+                                        if (!rec.id) {
+                                            return '';
+                                        }
+                                        var href = "<a href='javascript:' title='删除' onclick='subDel(" + rec.id + ")'><img src='/icons/delete.png'/></a>";
+                                        return href;
+                                    }
+                                    }
+                                ]
+                            ],
+                            onLoadSuccess: function (data) {
+                                $("sub#dg").datagrid("clearSelections");
+                            },
+                            onClickRow: function (rowIndex, rowData) {
+                                rowid = rowData.id;
+                                gridname = 'subdg';
+                            },
+                            onDblClickRow: function (index, row) {
+                                $("#subView").trigger("click");
                             }
                         });
             }
@@ -228,6 +308,16 @@
                     $("#view_" + k).text(str);
                 }
                 $('#viewDialog').dialog('open').dialog('setTitle', '查看');
+                var subdgdiv = $("#subdgdiv");
+                var subtable = $("#subtable");
+                var viewdlg = $('#viewDialog');
+                var h = viewdlg.height() - subtable.height() - 75;
+                if (h < 500) {
+                    h = 500;
+                }
+                subdgdiv.height(h);
+                var fieldValue = row[field];
+                createSubDataGrid(fieldValue);
             }
 
             //查看
@@ -304,6 +394,193 @@
             $("#delete").click(function () {
                 del();
             });
+            ///////////////////////////////////////////////子表操作////////////////////////////////////////
+            function getSubDataGridSelectedRow() {
+                var row = $('#subdg').datagrid('getSelected');
+                return row;
+            }
+
+            //获取表格选中行的指定列(单选)
+            function getSubDataGridSelectedData(field) {
+                var row = $('#subdg').datagrid('getSelected');
+                if (row != null) {
+                    value = row[field];
+                } else {
+                    value = '';
+                }
+                return value;
+            }
+
+            //获取表格选中行的指定列(多选)
+            function getSubDataGridSelectedDatas(field) {
+                var ids = '';
+                var rows = $('#subdg').datagrid('getSelections');
+                for (var i = 0; i < rows.length; i++) {
+                    ids += rows[i][field];
+                    ids += ',';
+                }
+                ids = ids.substring(0, ids.length - 1);
+                return ids;
+            }
+
+            function subAction(fm, op) {
+                $.messager.progress({
+                    title: '请稍后',
+                    msg: '操作进行中...'
+                });
+                fm.form('submit', {
+                    url: "/project/shangPin/subTableManager",
+                    onSubmit: function () {
+                        var isValid = $(this).form('validate');
+                        if (!isValid) {
+                            $.messager.progress('close');	// hide progress bar while the form is invalid
+                        }
+                        return isValid;	// return false will stop the form submission
+                    },
+                    success: function (e) {
+                        var json = $.parseJSON(e);
+                        if (json.errcode != 0) {
+                            $.messager.alert("错误", json.errmsg, "error");
+                        } else {
+                            showMsg("操作成功");
+                            if (op == "add") {
+                                $('#subAddDialog').dialog('close');
+                            } else if (op == "edit") {
+                                $('#subEditDialog').dialog('close')
+                            }
+                            subRefresh();
+                        }
+                        $.messager.progress('close');	// hide progress bar while submit successfully
+                    }
+                });
+            }
+
+            //添加
+            function subAdd() {
+                $('#subAddForm').form('reset');
+                $('#subAddDialog').dialog('open').dialog('setTitle', '添加');
+            }
+
+            $("#subAdd").click(function () {
+                subAdd();
+            });
+            //编辑
+            function subEdit() {
+                var row = getSubDataGridSelectedRow();
+                if (!row || row == undefined || row == null) {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                    return;
+                }
+                $('#subEditForm').form('reset');
+                var json = {};
+                for (var k in row) {
+                    $(json).attr("user." + k, row[k]);
+                }
+                $(json).attr("op", "edit");
+
+                $('#subEditForm').form('load', json);
+                $('#subEditDialog').dialog('open').dialog('setTitle', '编辑');
+            }
+
+            //编辑
+            $("#subEdit").click(function () {
+                subEdit();
+            });
+            //查看
+            function subView() {
+                var row = getSubDataGridSelectedRow();
+                if (!row || row == undefined || row == null) {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                    return;
+                }
+                for (var k in row) {
+                    var str = row[k] ? row[k] : "";
+                    if (k == "") {
+
+                    } else if (k == "sex") {
+                        str = renderSex(str);
+                    } else if (k == "status") {
+                        str = renderStatus(str);
+                    }
+                    $("#view_sub_" + k).text(str);
+                }
+                $('#subViewDialog').dialog('open').dialog('setTitle', '查看');
+            }
+
+            //查看
+            $("#subView").click(function () {
+                subView();
+
+            });
+            //保存
+            $("#subSddSaveButton").click(function () {
+                action($("#subAddForm"), "add");
+            });
+            //保存
+            $("#subEditSaveButton").click(function () {
+                action($("#subEditForm"), "edit");
+            });
+            //查询
+            $("#subSearchButton").click(function () {
+                $("#subdg").datagrid("load", $("#subSearchForm").serializeJson());
+            });
+            //刷新
+            function subRefresh() {
+                $("#subdg").datagrid("load", $("#subSearchForm").serializeJson());
+            }
+
+            //刷新
+            $("#subRefresh").click(function () {
+                subRefresh();
+            });
+            //重置
+            $("#subResetButton").click(function () {
+                $('#subSearchForm').form('reset');
+                subRefresh();
+            });
+            subDel = function (id) {
+                //获取选中的ID串
+                var ids;
+                if (id) {
+                    ids = id;
+                } else {
+                    ids = getSubDataGridSelectedDatas('id');
+                }
+                if (ids.length <= 0) {
+                    $.messager.alert("注意", "请选择至少一条数据", "info");
+                    return;
+                }
+                $.messager.confirm('注意', '确定删除吗?', function (r) {
+                    if (r) {
+                        $.messager.progress({
+                            title: '请稍后',
+                            msg: '操作进行中...'
+                        });
+                        $.ajax({
+                            url: "/project/shangPin/subTableManager",
+                            data: {'ids': ids, 'op': 'delete'},
+                            type: "Post",
+                            dataType: "json",
+                            success: function (data) {
+                                $.messager.progress('close');
+                                showMsg("删除成功");
+                                refresh();
+                                if (data.errcode != 0) {
+                                    $.messager.alert("错误", data.errmsg, "error");
+                                }
+                            },
+                            error: function (data) {
+                                $.messager.progress('close');
+                                $.messager.alert('错误', data, "error");
+                            }
+                        });
+                    }
+                });
+            }
+            //删除
+            $("#subDelete").click(function () {
+                subDel();
+            });
             init = false;
             setTimeout(function () {
                 $.parser.parse();
@@ -337,16 +614,20 @@
                 <td>商品名称:</td>
             <td class="tdRightPadding">
                     <input    name="shangPin.name"
-                                           data-options="required:false,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
+                                           data-options="required:false,validType:['idcard','length[0,50]']" class="f1 easyui-textbox"/>
                     </td>
                 <td>品牌:</td>
             <td class="tdRightPadding">
                     <input    name="shangPin.pingPai"
                                            data-options="required:false,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
                     </td>
-                    <td></td>
-                    <td><a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find">查询</a><a
-                            href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase">重置</a></td>
+                <td>价格:</td>
+            <td class="tdRightPadding">
+                    <input  style='width:110px'  name="shangPin.jiaGe"
+                                           data-options="required:false" class="f1 easyui-textbox"/>
+                    <a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find"></a><a
+                        href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase"></a>
+                </td>
                 </tr>
             </table>
         </form>
@@ -362,19 +643,33 @@
             <td class="tdRightPadding">
                     <input id="add_name"  
                            name="shangPin.name"
-                           data-options="required:true,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
+                           data-options="required:false,validType:['idcard','length[0,50]']" class="f1 easyui-textbox"/>
             </td>
             <td>品牌:</td>
             <td class="tdRightPadding">
                     <input id="add_pingPai"  
                            name="shangPin.pingPai"
-                           data-options="required:true,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
+                           data-options="required:false,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
             </td>
+            <td>价格:</td>
+            <td class="tdRightPadding">
+                    <input id="add_jiaGe"  
+                           name="shangPin.jiaGe"
+                           data-options="required:false" class="f1 easyui-textbox"/>
+            </td>
+            </tr>
+            <tr>
             <td>类别:</td>
             <td class="tdRightPadding">
-                    <input id="add_leibie"  style='width:110px'
+                    <input id="add_leibie"  
                            name="shangPin.leibie"
                            data-options="required:false,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
+            </td>
+            <td>数量:</td>
+            <td class="tdRightPadding">
+                    <input id="add_shuLiang"  
+                           name="shangPin.shuLiang"
+                           data-options="required:false" class="f1 easyui-textbox"/>
             </td>
             </tr>
 
@@ -394,19 +689,34 @@
         <input type="hidden" name="shangPin.id" value="0"/>
         <table style="font-size: 12px;text-align: right">
             <tr>
-            <td>商品名称:</td>
-            <td class="tdRightPadding">
-
-                    <input id="edit_name"  
-                           name="shangPin.name"
-                           data-options="required:true,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
-            </td>
             <td>品牌:</td>
             <td class="tdRightPadding">
 
                     <input id="edit_pingPai"  
                            name="shangPin.pingPai"
-                           data-options="required:true,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
+                           data-options="required:false,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
+            </td>
+            <td>价格:</td>
+            <td class="tdRightPadding">
+
+                    <input id="edit_jiaGe"  
+                           name="shangPin.jiaGe"
+                           data-options="required:false" class="f1 easyui-textbox"/>
+            </td>
+            <td>类别:</td>
+            <td class="tdRightPadding">
+
+                    <input id="edit_leibie"  
+                           name="shangPin.leibie"
+                           data-options="required:false,validType:{length:[0,50]}" class="f1 easyui-textbox"/>
+            </td>
+            </tr>
+            <td>数量:</td>
+            <td class="tdRightPadding">
+
+                    <input id="edit_shuLiang"  
+                           name="shangPin.shuLiang"
+                           data-options="required:false" class="f1 easyui-textbox"/>
             </td>
             </tr>
         </table>
@@ -418,19 +728,171 @@
            onclick="javascript:$('#editDialog').dialog('close')">取消</a>
     </div>
 </div>
-<div id="viewDialog" class="easyui-dialog" style="width: 800px;  padding: 10px 20px"
+<div id="viewDialog" class="easyui-dialog" style="width: 800px; height:80%; padding: 10px 20px"
      data-options="closed:true,buttons:'#viewDialog-buttons',modal:true,iconCls:'icon-search'">
     <table style="font-size: 12px;text-align: right" id="subable">
         <tr>
-        <td>商品名称:</td>
-        <td class="tdRightPadding" id="view_name"></td>
         <td>品牌:</td>
         <td class="tdRightPadding" id="view_pingPai"></td>
+        <td>价格:</td>
+        <td class="tdRightPadding" id="view_jiaGe"></td>
+        <td>类别:</td>
+        <td class="tdRightPadding" id="view_leibie"></td>
+        </tr>
+        <td>数量:</td>
+        <td class="tdRightPadding" id="view_shuLiang"></td>
         </tr>
     </table>
+    <div id="subdgdiv">
+        <div id="subdg" toolbar="#subdg_tb"/>
+        <div id="subdg_tb" style="padding:3px; height: auto">
+            <div style="height:30px;" class="datagrid-toolbar">
+	<span style="float:left;">
+
+	<a id="subAdd" href="javascript:" class="easyui-linkbutton" plain="true" icon="add">添加</a>
+	<a id="subEdit" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-edit">编辑</a>
+	<a id="subDelete" href="javascript:" class="easyui-linkbutton" plain="true" icon="delete">删除</a>STATUS
+	<a id="subView" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-search">查看</a>
+        <a id="subRefresh" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">刷新</a>
+
+	</span>
+            </div>
+            <div name="searchPanel">
+
+                <form id="subSearchForm" action="/systemManager/userManager" method="post">
+                    <input type="hidden" name="op" value="view"/>
+                    <table style="font-size: 12px;text-align: right">
+                            <tr>
+                            <td>店铺名称:</td>
+                        <td class="tdRightPadding">
+                                <input    name="addasShopOne.shopName"
+                                                       data-options="required:false,validType:{length:[0,255]}" class="f1 easyui-textbox"/>
+                                </td>
+                            <td>地址:</td>
+                        <td class="tdRightPadding">
+                                <input    name="addasShopOne.address"
+                                                       data-options="required:false,validType:{length:[0,500]}" class="f1 easyui-textbox"/>
+                                </td>
+                            <td>营业时间:</td>
+                        <td class="tdRightPadding">
+                                <input  style='width:110px'  name="addasShopOne.openDate"
+                                                       data-options="required:false" class="f1 easyui-textbox"/>
+                                <a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find"></a><a
+                                    href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase"></a>
+                            </td>
+                            </tr>
+                    </table>
+                </form>
+            </div>
+        </div>
+    </div>
     <div id="viewDialog-buttons">
         <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
            onclick="javascript:$('#viewDialog').dialog('close')">取消</a>
+    </div>
+</div>
+<div id="subdlgs">
+    <div id="subAddDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+         data-options="closed:true,buttons:'#subAddDialog-buttons',modal:true,iconCls:'icon-add'">
+        <form id="subAddForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" name="op" value="add"/>
+            <table style="font-size: 12px;text-align: right">
+                    <tr>
+                    <td>店铺名称:</td>
+                    <td class="tdRightPadding">
+                            <input id="add_shopName"  
+                                   name="addasShopOne.shopName"
+                                   data-options="required:false,validType:{length:[0,255]}" class="f1 easyui-textbox"/>
+                    </td>
+                    <td>地址:</td>
+                    <td class="tdRightPadding">
+                            <input id="add_address"  
+                                   name="addasShopOne.address"
+                                   data-options="required:false,validType:{length:[0,500]}" class="f1 easyui-textbox"/>
+                    </td>
+                    <td>管理员:</td>
+                    <td class="tdRightPadding">
+                            <input id="add_managerUser"  style='width:110px'
+                                   name="addasShopOne.managerUser"
+                                   data-options="required:false,validType:{length:[0,500]}" class="f1 easyui-textbox"/>
+                    </td>
+                    </tr>
+
+            </table>
+        </form>
+        <div id="subAddDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" id="subAddSaveButton"
+               data-options="iconCls:'icon-save',plain:true">保存</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#subAddDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+    <div id="subEditDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+         data-options="closed:true,buttons:'#subEditDialog-buttons',modal:true,iconCls:'icon-edit'">
+        <form id="subEditForm" action="/systemManager/userManager" method="post">
+            <input type="hidden" name="op" value="edit"/>
+            <input type="hidden" name="user.id" value="0"/>
+            <table style="font-size: 12px;text-align: right">
+                    <tr>
+                    <td>店铺名称:</td>
+                    <td class="tdRightPadding">
+
+                            <input id="edit_shopName"  
+                                   name="addasShopOne.shopName"
+                                   data-options="required:false,validType:{length:[0,255]}" class="f1 easyui-textbox"/>
+                    </td>
+                    <td>地址:</td>
+                    <td class="tdRightPadding">
+
+                            <input id="edit_address"  
+                                   name="addasShopOne.address"
+                                   data-options="required:false,validType:{length:[0,500]}" class="f1 easyui-textbox"/>
+                    </td>
+                    <td>管理员:</td>
+                    <td class="tdRightPadding">
+
+                            <input id="edit_managerUser"  style='width:110px'
+                                   name="addasShopOne.managerUser"
+                                   data-options="required:false,validType:{length:[0,500]}" class="f1 easyui-textbox"/>
+                    </td>
+                    </tr>
+
+            </table>
+        </form>
+        <div id="subEditDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" id="subEditSaveButton"
+               data-options="iconCls:'icon-save',plain:true">保存</a>
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#subEditDialog').dialog('close')">取消</a>
+        </div>
+    </div>
+    <div id="subViewDialog" class="easyui-dialog" style="width: 800px; padding: 10px 20px"
+         data-options="closed:true,buttons:'#subViewDialog-buttons',modal:true,iconCls:'icon-search'">
+        <table style="font-size: 12px;text-align: right">
+            <tr>
+                <td style="width: 60px;">店铺名称:</td>
+                <td class="tdRightPadding" id="view_sub_shopName"></td>
+                <td style="width: 60px;">店铺地址:</td>
+                <td class="tdRightPadding" id="view_sub_address"></td>
+                <td style="width: 60px;">营业时间:</td>
+                <td class="tdRightPadding" id="view_sub_openDate"></td>
+            </tr>
+            <tr>
+                <td style="width: 60px;">状态:</td>
+                <td class="tdRightPadding" id="view_sub_status"></td>
+                <td style="width: 60px;">店龄:</td>
+                <td class="tdRightPadding" id="view_sub_age"></td>
+                <td></td>
+                <td></td>
+            </tr>
+
+        </table>
+
+
+        <div id="subViewDialog-buttons">
+            <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+               onclick="javascript:$('#subViewDialog').dialog('close')">取消</a>
+        </div>
     </div>
 </div>
 </body>

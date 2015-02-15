@@ -13,7 +13,8 @@ $.extend($.fn.validatebox.defaults.rules,{
         },
         mobile : {// 验证手机号码
             validator : function(value) {
-                return /^(13|15|18|17)\d{9}$/i.test(value);
+                //return /^(13|15|18|17)\d{9}$/i.test(value);
+                return /^((1[3,5,8][0-9])|(14[5,7])|(17[0,6,7,8]))\d{8}$/i.test(value);
             },
             message : '手机号码格式不正确'
         }

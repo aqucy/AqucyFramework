@@ -23,6 +23,9 @@ public class ColumnPojo {
     private String validateType;
     private int minLength;
     private int maxLength;
+    private long id;
+    private String selectInputConfigStr;
+    private String inputSql;
     private Map<Object, Object> selectInputConfig;
 
     public Map<Object, Object> getSelectInputConfig() {
@@ -31,6 +34,30 @@ public class ColumnPojo {
 
     public void setSelectInputConfig(Map<Object, Object> selectInputConfig) {
         this.selectInputConfig = selectInputConfig;
+    }
+
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public String getSelectInputConfigStr() {
+        return selectInputConfigStr;
+    }
+
+    public void setSelectInputConfigStr(String selectInputConfigStr) {
+        this.selectInputConfigStr = selectInputConfigStr;
+    }
+
+    public String getInputSql() {
+        return inputSql;
+    }
+
+    public void setInputSql(String inputSql) {
+        this.inputSql = inputSql;
     }
 
     public int getMinLength() {

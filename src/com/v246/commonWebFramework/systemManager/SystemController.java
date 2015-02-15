@@ -1,7 +1,10 @@
 package com.v246.commonWebFramework.systemManager;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jfinal.aop.Before;
 import com.jfinal.core.Controller;
+import com.jfinal.kit.JsonKit;
 import com.jfinal.kit.StrKit;
 import com.jfinal.kit.StringKit;
 import com.jfinal.plugin.activerecord.Db;
@@ -10,15 +13,14 @@ import com.jfinal.plugin.activerecord.Page;
 import com.jfinal.plugin.activerecord.Record;
 import com.jfinal.plugin.activerecord.tx.Tx;
 import com.jfinal.plugin.activerecord.tx.TxByActionKeys;
-import com.v246.commonWebFramework.dao.MenuModel;
-import com.v246.commonWebFramework.dao.RoleModel;
-import com.v246.commonWebFramework.dao.UserModel;
-import com.v246.commonWebFramework.dao.UserRoleModel;
+import com.v246.commonWebFramework.dao.*;
 import com.v246.commonWebFramework.utils.AqucyTools;
 import com.v246.commonWebFramework.utils.createCode.EasyUICreateCode;
 import com.v246.commonWebFramework.utils.createCode.Extjs2CreateCode;
 import com.v246.commonWebFramework.utils.createCode.ICreateCode;
+import com.v246.commonWebFramework.utils.createCode.pojo.TableConfig;
 
+import java.io.StringWriter;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
@@ -226,9 +228,26 @@ public class SystemController extends Controller {
     }
     public void createCodeManager(){
         String op = getPara("op");
+        long id = getParaToLong("id",0L);
+        setAttr("void",id);
         Map jo = new ConcurrentHashMap();
         jo.put("success", true);
+        ViewObjectModel vo = null;
         if(StrKit.isBlank(op)){
+            if(id>0){
+                vo = ViewObjectModel.dao.findById(id);
+
+
+            }else{
+                vo = new ViewObjectModel();
+                vo.set("allowSubViewObjectAdd",true);
+                vo.set("allowSubViewObjectDelete",true);
+                vo.set("allowSubViewObjectEdit",true);
+                vo.set("allowAdd",true);
+                vo.set("allowEdit",true);
+                vo.set("allowDelete",true);
+            }
+            setAttr("vo",vo);
             render("createCodeManager.html");
         }else if("getColumn".equalsIgnoreCase(op)){
             String targetName = getPara("tableName");
@@ -299,28 +318,53 @@ public class SystemController extends Controller {
                 }
                 jo.put("rows",list);
                 jo.put("errcode", 0);
-                renderJson(jo);
+
             }catch(Exception e){
                 e.printStackTrace();
                 jo.put("errcode", 1234);
+                jo.put("errmsg","查无此表或视图");
+                jo.put("rows",list);
             }
+            renderJson(jo);
 
         }else if("createCode".equalsIgnoreCase(op)){
-            String tableName = getPara("tableName");
-            String alias = getPara("alias");
-            if(StrKit.isBlank(tableName)||StrKit.isBlank(alias)){
+            ICreateCode createCode = new EasyUICreateCode();
+            String re = createCode.createCode(getPara("json"));
+            if(re!=null){
                 jo.put("errcode", 1);
-                jo.put("errmsg", "表名或别名不能为空");
+                jo.put("errmsg",re);
             }else{
-                ICreateCode createCode = new EasyUICreateCode();
-                String re = createCode.createCode(getPara("json"));
-                if(re!=null){
+                jo.put("errcode", 0);
+            }
+            renderJson(jo);
+        }else if("getVo".equalsIgnoreCase(op)){
+            List<ViewObjectColumnConfigModel> list = ViewObjectColumnConfigModel.dao.find("SELECT * FROM acyframework_view_object_columns_config where viewObjectId=?", id);
+            Map mp = new HashMap();
+            mp.put("rows",list);
+            String json = null;
+            ObjectMapper om = new ObjectMapper();
+            json = JsonKit.toJson(mp);
+            json = json.replace("true", "\"是\"");
+            json = json.replace("false","\"\"");
+            json = json.replace("\"null\"","\"\"");
+            json = json.replace(":null",":\"\"");
+            renderJson(json);
+        }else if("saveCode".equalsIgnoreCase(op)){
+            AqucyTools tools = new AqucyTools();
+            try {
+                Map<String,Object> root = tools.resolveToRootMap(getPara("json"));
+                if(root.containsKey("errmsg")){
                     jo.put("errcode", 1);
-                    jo.put("errmsg",re);
+                    jo.put("errmsg", root.get("errmsg"));
                 }else{
+                    tools.saveConfigToDb((TableConfig)root.get("tableConfig"));
                     jo.put("errcode", 0);
                 }
 
+            }catch (Exception e){
+                jo.put("errcode", 1);
+                jo.put("errmsg", "操作异常,请联系管理员");
+                e.printStackTrace();
             }
             renderJson(jo);
         }else if("getAllDict".equalsIgnoreCase(op)){
@@ -366,6 +410,63 @@ public class SystemController extends Controller {
             }
         }
         renderJson(jo);
+    }
+    public void viewObjectManager(){
+        String op = getPara("op");
+        Map<Object, Object> jo = new HashMap<Object, Object>();
+        ViewObjectModel model = getModel(ViewObjectModel.class,"vo");
+        if(StrKit.isBlank(op)){
+            render("voManager.html");
+        }
+        else if("view".equalsIgnoreCase(op)) {
+            int start = getParaToInt("page",1);
+            int limit = getParaToInt("rows",10);
+            start = (start-1)*limit;
+            StringBuffer sb = new StringBuffer();
+            sb.append("FROM acyframework_view_object");
+            model.removeNullValueAttrs();
+            String[] keys = model.getAttrNames();
+            Page<ViewObjectModel>  page = null;
+            if(keys.length>0){
+                sb.append(" where 1=1");
+                for (String key : keys) {
+                    sb.append(" and ").append(key);
+                    if(model.get(key) instanceof  String){
+                        sb.append(" like ?");
+                        String v = model.get(key);
+                        v =v .replace("'","");
+                        v = "%"+v+"%";
+                        model.put(key,v);
+                    }else{
+                        sb.append(" = ?");
+                    }
+                }
+                String sort = getPara("sort");
+                if(StrKit.notBlank(sort)){
+                    sb.append(" order by ").append(sort).append(" ").append(getPara("order"));
+                }
+                page = ViewObjectModel.dao.paginate((start/limit)+1,limit,"SELECT *",sb.toString(),model.getAttrValues());
+
+            }else{
+                String sort = getPara("sort");
+                if(StrKit.notBlank(sort)){
+                    sb.append(" order by ").append(sort).append(" ").append(getPara("order"));
+                }
+                page = ViewObjectModel.dao.paginate((start/limit)+1,limit,"SELECT *",sb.toString());
+            }
+            jo.put("total", page.getTotalRow());
+            jo.put("errcode", 0);
+            jo.put("rows", page.getList());
+            renderJson(jo);
+        }else if ("delete".equalsIgnoreCase(op)) {
+            String ids = getPara("ids");
+            if(StrKit.notBlank(ids)){
+                //解除用户与角色关联
+                Db.update("delete from acyframework_view_object where id in(" + ids + ")");
+            }
+            jo.put("errcode", 0);
+            renderJson(jo);
+        }
     }
     private void test(Object... params){
         System.out.println(params.getClass());

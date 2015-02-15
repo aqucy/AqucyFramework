@@ -20,8 +20,116 @@ public class TableConfig {
     private int maxDisplayColumnLen = 0;
     private int maxQueryColumnLen = 0;
     private String tableAliasName;
-    private long subViewObjectId;
     private boolean hasSelectInput = false;
+    private String title;
+    private long id;
+    private long subViewObjectId;
+    private String subViewLinkColumn;
+    private String selfColumnsToSubViewUpdate;
+    private boolean add;
+    private boolean delete;
+    private boolean edit;
+    private  boolean subAdd;
+    private boolean subDelete;
+    private boolean subEdit;
+    private String selfColumnForSubViewLink;
+    private  TableConfig subTableConfig = null;
+
+    public TableConfig getSubTableConfig() {
+        return subTableConfig;
+    }
+
+    public void setSubTableConfig(TableConfig subTableConfig) {
+        this.subTableConfig = subTableConfig;
+    }
+
+    public String getSelfColumnForSubViewLink() {
+        return selfColumnForSubViewLink;
+    }
+
+    public void setSelfColumnForSubViewLink(String selfColumnForSubViewLink) {
+        this.selfColumnForSubViewLink = selfColumnForSubViewLink;
+    }
+
+    public String getSubViewLinkColumn() {
+        return subViewLinkColumn;
+    }
+
+    public void setSubViewLinkColumn(String subViewLinkColumn) {
+        this.subViewLinkColumn = subViewLinkColumn;
+    }
+
+    public String getSelfColumnsToSubViewUpdate() {
+        return selfColumnsToSubViewUpdate;
+    }
+
+    public void setSelfColumnsToSubViewUpdate(String selfColumnsToSubViewUpdate) {
+        this.selfColumnsToSubViewUpdate = selfColumnsToSubViewUpdate;
+    }
+
+    public boolean isAdd() {
+        return add;
+    }
+
+    public void setAdd(boolean add) {
+        this.add = add;
+    }
+
+    public boolean isDelete() {
+        return delete;
+    }
+
+    public void setDelete(boolean delete) {
+        this.delete = delete;
+    }
+
+    public boolean isEdit() {
+        return edit;
+    }
+
+    public void setEdit(boolean edit) {
+        this.edit = edit;
+    }
+
+    public boolean isSubAdd() {
+        return subAdd;
+    }
+
+    public void setSubAdd(boolean subAdd) {
+        this.subAdd = subAdd;
+    }
+
+    public boolean isSubDelete() {
+        return subDelete;
+    }
+
+    public void setSubDelete(boolean subDelete) {
+        this.subDelete = subDelete;
+    }
+
+    public boolean isSubEdit() {
+        return subEdit;
+    }
+
+    public void setSubEdit(boolean subEdit) {
+        this.subEdit = subEdit;
+    }
+
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
 
     public boolean isHasSelectInput() {
         return hasSelectInput;

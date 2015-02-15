@@ -29,6 +29,10 @@
         var haveData = false;
         var currentAdvColumnName;
         var tmpConfigJson = {};
+        var voId = ${void};
+        if(voId>0){
+            haveData = true;
+        }
         $.parser.onComplete = function (context) {
             $("#Loading").css("display", "none");
             $.get("/systemManager/createCodeManager?op=getAllDict",
@@ -49,6 +53,9 @@
 
             function createDataGrid() {
                 var initUrl = '/systemManager/createCodeManager';
+                if(voId>0){
+                    initUrl = initUrl+"?op=getVo&id="+voId;
+                }
                 initUrl = encodeURI(initUrl);
                 $('#dg').datagrid(
                         {
@@ -260,7 +267,7 @@
                                 ]
                             ],
                             onBeforeLoad: function (params) {
-                                if (init) {
+                                if (init&&voId<=0) {
                                     init = false;
                                     return false;
                                 }
@@ -269,7 +276,7 @@
                                 $("#dg").datagrid("clearSelections");
                             },
                             onClickRow: function (rowIndex, rowData) {
-                                clickRow(rowIndex,"dg");
+                                clickRow(rowIndex, "dg");
                             },
                             onDblClickRow: function (index, row) {
 
@@ -284,11 +291,11 @@
                 if (editIndex == undefined) {
                     return true
                 }
-                if ($('#'+dgId).datagrid('validateRow', editIndex)) {
+                if ($('#' + dgId).datagrid('validateRow', editIndex)) {
 //                    var ed = $('#dg').datagrid('getEditor', {index:editIndex,field:'productid'});
 //                    $(ed.target).combobox('loadData',allDictJson);
 //                    $('#dg').datagrid('getRows')[editIndex]['productname'] = productname;
-                    $('#'+dgId).datagrid('endEdit', editIndex);
+                    $('#' + dgId).datagrid('endEdit', editIndex);
                     editIndex = undefined;
                     return true;
                 } else {
@@ -296,28 +303,36 @@
                 }
             }
 
-            function clickRow(index,dgId) {
-//                console.log($("#dg").datagrid('getData'));
+            function clickRow(index, dgId) {
                 if (editIndex != index) {
                     if (endEditing(dgId)) {
-                        $('#'+dgId).datagrid('selectRow', index)
+                        $('#' + dgId).datagrid('selectRow', index)
                                 .datagrid('beginEdit', index);
                         editIndex = index;
                         var ed = null;
-                        if(dgId=="dg"){
-                            ed = $('#'+dgId).datagrid('getEditor', {index: editIndex, field: 'dictCode'});
+                        if (dgId == "dg") {
+                            ed = $('#' + dgId).datagrid('getEditor', {index: editIndex, field: 'dictCode'});
                             $(ed.target).combobox('loadData', allDictJson);
-                        }else if(dgId=="selectInputConfigDg"){
-                            console.log(selectInputSqlcolumnJson.datas);
-                            ed = $('#'+dgId).datagrid('getEditor', {index: editIndex, field: 'targetColumnName'});
+                        } else if (dgId == "selectInputConfigDg") {
+                            ed = $('#' + dgId).datagrid('getEditor', {index: editIndex, field: 'targetColumnName'});
                             $(ed.target).combobox('loadData', selectInputSqlcolumnJson.datas);
                         }
                     } else {
-                        $('#'+dgId).datagrid('selectRow', editIndex);
-                    }
+                        $('#' + dgId).datagrid('selectRow', editIndex);
+                    } //A16X07
                 }
             }
-
+            function clearSubConfig(){
+                var json = {};
+                json.mainColumnName = "";
+                json.subColumnName = "";
+                json.subVoId = "";
+                json.importColumn = "";
+                json.subAdd = "on";
+                json.subDelete = "on";
+                json.subEdit = "on";
+                $("#subdgConfigForm").form("load", json);
+            }
             $("#okButton").click(function () {
                 var tn = $("#tableName").val();
                 if (tn == null || tn == "" || tn == undefined) {
@@ -326,45 +341,120 @@
                 }
                 var ok = false;
                 if (haveData) {
+
                     $.messager.confirm('表格内已有数据', '确定删除这些数据么??', function (r) {
                         if (r) {
                             $("#op").val("getColumn");
-                            $("#dg").datagrid("load", $("#searchForm").serializeJson());
+                            $("#dg").datagrid({
+                                url:encodeURI("/systemManager/createCodeManager")
+                            });
+                            $("#dg").datagrid("load", $("#mainConfigForm").serializeJson());
+                            clearSubConfig();
                         }
                     })
                 } else {
                     $("#op").val("getColumn");
-                    $("#dg").datagrid("load", $("#searchForm").serializeJson());
+                    $("#dg").datagrid("load", $("#mainConfigForm").serializeJson());
                 }
                 haveData = true;
             });
-            $("#createButton").click(function () {
-                var tn = $("#tableName").val();
-                if (tn == null || tn == "" || tn == undefined) {
-                    alert("请添写表名");
+            $("#cancelButton").click(function(){
+                location.href = "/systemManager/viewObjectManager?t="+new Date().getTime();
+            });
+            $("#deleteSubConfgButton").click(function(){
+                clearSubConfig();
+            });
+            function saveSubConfigToJson(json){
+                var isValid = $("#subdgConfigForm").form('validate');
+                if(isValid){
+                    var subConfigJson = $("#subdgConfigForm").serializeJson();
+                    json.mainColumnName = subConfigJson.mainColumnName;
+                    json.subColumnName = subConfigJson.subColumnName;
+                    json.subVoId = subConfigJson.subVoId;
+                    json.importColumn = subConfigJson.importColumn;
+                    json.subAdd = subConfigJson.subAdd;
+                    json.subDelete = subConfigJson.subDelete;
+                    json.subEdit = subConfigJson.subEdit;
+                }
+                return json;
+            }
+            function saveMainConfigToJson(json){
+                var isValid = $("#mainConfigForm").form('validate');
+                if(isValid){
+                    var mainConfig = $("#mainConfigForm").serializeJson();
+                    json.tableName = mainConfig.tableName;
+                    json.alias = mainConfig.alias;
+                    json.title = mainConfig.title;
+                    json.add = mainConfig.add;
+                    json.delete = mainConfig.delete;
+                    json.edit = mainConfig.edit;
+                }
+            }
+            $("#saveButton").click(function(){
+                var isValid = $("#mainConfigForm").form('validate');
+                if(!isValid){
+                    alert("请完善VO配置!");
                     return;
                 }
-                var alias = $("#alias").val();
-                if (alias == null || alias == "" || alias == undefined) {
-                    alert("请添写别名");
-                    return;
-                }
+                $.messager.progress({
+                    title: '请稍后',
+                    msg: '操作进行中...'
+                });
                 endEditing("dg");
                 var json = {};
                 json.datas = $('#dg').datagrid("getData").rows;
-                json.tableName = tn;
-                json.alias = alias;
+                saveMainConfigToJson(json);
+                saveSubConfigToJson(json);
                 json.reCreate = "yes";
+                if(voId>0){
+                    json.id=voId;
+                }
+                $.ajax({
+                    type: 'POST',
+                    url: "/systemManager/createCodeManager",
+                    data: {
+                        op: "saveCode",
+                        json: JSON.stringify(json)
+                    },
+                    success: function (data) {
+                        $.messager.progress('close');
+                        if (data.errcode > 0) {
+                            alert(data.errmsg);
+                        } else {
+                            showMsg("操作成功!")
+                        }
+                    },
+                    dataType: "json"
+                });
+            });
+            $("#createButton").click(function () {
+                var isValid = $("#mainConfigForm").form('validate');
+                if(!isValid){
+                    alert("请完善VO配置!");
+                    return;
+                }
+                $.messager.progress({
+                    title: '请稍后',
+                    msg: '操作进行中...'
+                });
+                endEditing("dg");
+                var json = {};
+                json.datas = $('#dg').datagrid("getData").rows;
+                saveSubConfigToJson(json);
+                saveMainConfigToJson(json);
+                json.reCreate = "yes";
+                if(voId>0){
+                    json.id=voId;
+                }
                 $.ajax({
                     type: 'POST',
                     url: "/systemManager/createCodeManager",
                     data: {
                         op: "createCode",
-                        tableName: tn,
-                        alias: alias,
                         json: JSON.stringify(json)
                     },
                     success: function (data) {
+                        $.messager.progress('close');
                         if (data.errcode > 0) {
                             alert(data.errmsg);
                         } else {
@@ -378,7 +468,7 @@
             $("#advButton").click(function () {
                 endEditing("dg");
                 $("#tree").tree("loadData", []);
-                $("#tt").css("display","none");
+                $("#tt").css("display", "none");
                 currentAdvColumnName = "";
                 tmpConfigJson = {};
                 var rows = $('#dg').datagrid("getData").rows;
@@ -390,7 +480,7 @@
                     treeJson.push(json);
                 }
                 $("#tree").tree({
-                    onSelect:function(node){
+                    onSelect: function (node) {
                         saveColumnConfig(node);
                     }
                 });
@@ -398,69 +488,71 @@
                 $("#advDialog").dialog('open').dialog('setTitle', '高级设置');
             });
             //格式化配置中的一些特殊字符串,以便使用easyui FORM的load方法初始化FORM数据
-            function formatAdvFromData(data){
+            function formatAdvFromData(data) {
                 var str = JSON.stringify(data);
-                str = str.replace(/是/g,"on");
+                str = str.replace(/是/g, "on");
                 data = $.parseJSON(str);
                 return data;
             }
+
             //临时保存配置到一个对像中
-            function saveColumnConfigToTmpObject(columnName){
+            function saveColumnConfigToTmpObject(columnName) {
                 //将基本的高基本配置的数入项与值转换成json格式数据
                 var formJson = $("#advForm").serializeJson();
                 //如果配置了弹出选择框
-                if(formJson.inputType=="selectInput"){
+                if (formJson.inputType == "selectInput") {
                     //如果写了SQL句
-                    if(formJson.inputSql!=""&&formJson.inputSql!=null){
+                    if (formJson.inputSql != "" && formJson.inputSql != null) {
                         //如果该SQL句没有毛丙
-                        if($("#selectInputConfig").css("display")=="block"){
+                        if ($("#selectInputConfig").css("display") == "block") {
                             //则保存弹出选择框的配置
                             var str = "";
                             var srows = $("#selectInputConfigDg").datagrid("getData").rows;
-                            for(i=0;i<srows.length;i++){
+                            for (i = 0; i < srows.length; i++) {
                                 var tn = srows[i].targetColumnName;
-                                if(tn!=undefined&&tn!=null&&tn!=""){
-                                    str = str+srows[i].columnName+":"+tn+",";
+                                if (tn != undefined && tn != null && tn != "") {
+                                    str = str + srows[i].columnName + ":" + tn + ",";
                                 }
                             }
-                            if(str!=""){
-                                formJson.selectInputConfig = str.substring(0,str.length-1);
-                            }else{
+                            if (str != "") {
+                                formJson.selectInputConfig = str.substring(0, str.length - 1);
+                            } else {
                                 //如果没有配置实际列对应配置,那么将输入框类型置为默认
                                 formJson.inputType = "";
                             }
-                        }else{
+                        } else {
                             formJson.inputType = "";
                         }
-                    }else{
+                    } else {
                         formJson.inputType = "";
                     }
                 }
                 //以列名为KEY,JSON转换成字符串后的值为value 保存,以便以后使用
                 tmpConfigJson[columnName] = JSON.stringify(formJson);
             }
+
             //树结点被点击后,临时保存配置
-            function saveColumnConfig(node){
+            function saveColumnConfig(node) {
                 endEditing("selectInputConfigDg");
                 var rows = $('#dg').datagrid("getData").rows;
-                if($("#tt").css("display")=="none"){
-                    $("#tt").css("display","");
+                if ($("#tt").css("display") == "none") {
+                    $("#tt").css("display", "");
                     currentAdvColumnName = node.columnName;
-                    for(var i=0;i<rows.length;i++) {
+                    for (var i = 0; i < rows.length; i++) {
                         if (rows[i].columnName == currentAdvColumnName) {
                             resetColumnConfig(rows[i]);
                             break;
                         }
                     }
-                }else{
+                } else {
                     var targetJson;
                     var cn = node.columnName;
                     saveColumnConfigToTmpObject(currentAdvColumnName);
-                    if(tmpConfigJson[cn]){
+                    if (tmpConfigJson[cn]) {
                         targetJson = $.parseJSON(tmpConfigJson[cn]);
-                    }else{
-                        for(i=0;i<rows.length;i++){
-                            if(rows[i].columnName==cn){
+                    } else {
+                        for (i = 0; i < rows.length; i++) {
+                            if (rows[i].columnName == cn) {
                                 targetJson = rows[i];
                             }
                         }
@@ -469,8 +561,9 @@
                     currentAdvColumnName = node.columnName;
                 }
             }
+
             //重置列配置
-            function resetColumnConfig(json){
+            function resetColumnConfig(json) {
                 //FORM重置
                 $("#advForm").form("reset");
                 //清除弹出选择框的配置
@@ -479,22 +572,24 @@
                 $("#selectInputConfig").css("display", "none");
                 $("#selectInputConfigDg").css("display", "none");
                 //读取用户在集中配置界面中的基本配置
-                $("#advForm").form("load",formatAdvFromData(json));
+                $("#advForm").form("load", formatAdvFromData(json));
                 //对一些高级组件进行初始化数据(如果配置了的话)
                 resetColumnConfigForAdv(json);
             }
+
             //重置一些比较复杂的配置,比如弹出选择框一类的
-            function resetColumnConfigForAdv(json){
-                console.log(json);
+            function resetColumnConfigForAdv(json) {
                 //selectInput初始化
-                if(json.inputType=="selectInput"){
+                if (json.inputType == "selectInput") {
                     $("#selectInputConfig").css("display", "");
                     readSqlColumnData(json["selectInputConfig"]);
                 }
             }
-            function initColumnConfig(){
+
+            function initColumnConfig() {
 
             }
+
             $("#inputType").combobox({
                 //如果输入框类型为弹出选择框
                 onSelect: function (data) {
@@ -502,26 +597,25 @@
                 }
             });
             //清除弹出选择框配置DATAGRID的列及数据
-            function clearSelectInputConfigDg(){
-                $("#selectInputConfigDg").datagrid("loadData",{total:0,rows:[]});
+            function clearSelectInputConfigDg() {
+                $("#selectInputConfigDg").datagrid("loadData", {total: 0, rows: []});
             }
+
             //弹出选择框配置时,输入SQL语句后,点确定按钮进行语句解析,讯取该SQL语句的所有列信息
             $("#inputSqlOkButton").click(function () {
                 readSqlColumnData();
             });
             //读取SQL的列信息,并初填充进datagrid内,如果传入configStr则需将对应的配置信息也初始化
-            function readSqlColumnData(configStr){
+            function readSqlColumnData(configStr) {
                 var sqlColumnConfigJson = {};
-                if(configStr){
+                if (configStr) {
                     var arr = configStr.split(",");
-                    for(var i=0;i<arr.length;i++){
+                    for (var i = 0; i < arr.length; i++) {
                         var str = arr[i];
                         var subArr = str.split(":");
                         sqlColumnConfigJson[subArr[0]] = subArr[1];
                     }
                 }
-                console.log(sqlColumnConfigJson);
-                console.log(configStr);
                 var sql = $("#inputSql").val();
                 if (sql == "" || sql == null || sql == undefined) {
                     alert("SQL语句不能为空")
@@ -536,11 +630,14 @@
                                     selectInputSqlcolumnJson = data;
                                     $("#selectInputConfigDg").datagrid({});
                                     var rows = $('#dg').datagrid("getData").rows;
-                                    var json=[];
-                                    for(i=0;i<rows.length;i++){
-                                        if(configStr){
-                                            json.push({columnName: rows[i].columnName,targetColumnName:sqlColumnConfigJson[rows[i].columnName]});
-                                        }else{
+                                    var json = [];
+                                    for (i = 0; i < rows.length; i++) {
+                                        if (configStr) {
+                                            json.push({
+                                                columnName: rows[i].columnName,
+                                                targetColumnName: sqlColumnConfigJson[rows[i].columnName]
+                                            });
+                                        } else {
                                             json.push({columnName: rows[i].columnName});
                                         }
                                     }
@@ -551,66 +648,78 @@
                             }, 'json');
                 }
             }
+
             //弹也选择框配置中的datagrid初始配置
             $("#selectInputConfigDg").datagrid({
                 singleSelect: true,
                 onClickRow: function (rowIndex, rowData) {
-                    clickRow(rowIndex,'selectInputConfigDg');
+                    clickRow(rowIndex, 'selectInputConfigDg');
                 }
 
             });
             //高级配置界面保存操作
-            $("#advSaveButton").click(function() {
+            $("#advSaveButton").click(function () {
                 endEditing("selectInputConfigDg");
                 saveColumnConfigToTmpObject(currentAdvColumnName);
                 var rows = $('#dg').datagrid("getData").rows;
-                for(i=0;i<rows.length;i++){
+                for (i = 0; i < rows.length; i++) {
                     var columnName = rows[i].columnName;
-                    if(tmpConfigJson[columnName]){
+                    if (tmpConfigJson[columnName]) {
                         var formJson = $.parseJSON(tmpConfigJson[columnName]);
-                        if(formJson.allowAdd){
+                        if (formJson.allowAdd) {
                             rows[i].allowAdd = "是";
-                        }else{
+                        } else {
                             rows[i].allowAdd = "";
                         }
-                        if(formJson.allowEdit){
+                        if (formJson.allowEdit) {
                             rows[i].allowEdit = "是";
-                        }else{
+                        } else {
                             rows[i].allowEdit = "";
                         }
-                        if(formJson.allowQuery){
+                        if (formJson.allowQuery) {
                             rows[i].allowQuery = "是";
-                        }else{
+                        } else {
                             rows[i].allowQuery = "";
                         }
-                        if(formJson.allowDisplay){
+                        if (formJson.allowDisplay) {
                             rows[i].allowDisplay = "是";
-                        }else{
+                        } else {
                             rows[i].allowDisplay = "";
                         }
-                        if(formJson.required){
+                        if (formJson.required) {
                             rows[i].required = "是";
-                        }else{
+                        } else {
                             rows[i].required = "";
                         }
-                        if(formJson.inputType){
-                            rows[i].inputType=formJson.inputType;
+                        if (formJson.inputType) {
+                            rows[i].inputType = formJson.inputType;
                         }
-                        if(formJson.selectInputConfig){
+                        if (formJson.selectInputConfig) {
                             rows[i].selectInputConfig = formJson.selectInputConfig;
                         }
-                        if(formJson.inputSql){
+                        if (formJson.inputSql) {
                             rows[i].inputSql = formJson.inputSql;
                         }
-                        if(formJson.validateType){
+                        if (formJson.validateType) {
                             rows[i].validateType = formJson.validateType;
                         }
                         rows[i].displayName = formJson.displayName;
                     }
                 }
-                $("#dg").datagrid("loadData",rows);
+                $("#dg").datagrid("loadData", rows);
                 $('#advDialog').dialog('close');
 
+            });
+            ////////////////////////////////////子表配置///////////////////
+            $("#subTableButton").click(function(){
+                $("#subdgConfigDialog").dialog('open').dialog('setTitle', '子表配置');
+            });
+            $("#subdgConfigSaveButton").click(function(){
+                var isValid = $("#subdgConfigForm").form('validate');
+                if(isValid){
+                    console.log($("#subdgConfigForm").serializeJson());
+                    $('#subdgConfigDialog').dialog('close');
+                }
             });
             //选迟1秒钟后渲染页面
             setTimeout(function () {
@@ -628,25 +737,44 @@
 <div id="dg_tb" style="padding:3px; height: auto">
     <div name="searchPanel">
 
-        <form id="searchForm" action="/systemManager/userManager" method="post">
+        <form id="mainConfigForm" action="/systemManager/userManager" method="post">
             <input type="hidden" id="op" name="op" value=""/>
             <input type="hidden" name="target" value="easyui"/>
             <table style="font-size: 12px;text-align: right">
                 <tr>
+                    <td>菜单名:</td>
+                    <td class="tdRightPadding"><input id="title" name="title" value="${vo.title!}"
+                                                      data-options="required:true,validType:{length:[3,255]}"
+                                                      class="f1 easyui-textbox"/>
+
+                    </td>
                     <td>表名:</td>
-                    <td class="tdRightPadding"><input id="tableName" name="tableName" value="acyframework_users"
-                                                      data-options="validType:{length:[3,255]}"
+                    <td class="tdRightPadding"><input id="tableName"  name="tableName" value="${vo.tableName!}"
+                                                      data-options="required:true,validType:{length:[3,255]}"
                                                       class="f1 easyui-textbox"/></td>
                     <td>别名:</td>
-                    <td class="tdRightPadding"><input id="alias" name="alias" class="f1 easyui-textbox"
-                                                      data-options="validType:['length[3,255]']"/>
-                    </td>
-                    <td class="tdRightPadding" width="200px">
+                    <td class="tdRightPadding"><input id="alias" name="alias" value="${vo.tableAliasName!}" class="f1 easyui-textbox" style="width: 100px"
+                                                      data-options="required:true,validType:['length[3,255]']"/>
                         <a href="javascript:" id="okButton" class="easyui-linkbutton" icon="accept">确定</a>
-                        <a href="javascript:" id="createButton" class="easyui-linkbutton" icon="erase">生成</a>
                     </td>
-                    <td class="tdRightPadding" width="200px">
-                        <a href="javascript:" id="advButton" class="easyui-linkbutton" icon="erase">高级设置</a>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td class="tdRightPadding">
+                        <span>增:<input name="add" <#if vo.allowAdd>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
+                        <span>删:<input name="delete" <#if vo.allowDelete>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
+                        <span>改:<input name="edit" <#if vo.allowEdit>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
+                    </td>
+
+                    <td class="tdRightPadding" colspan="2">
+                        <a href="javascript:" id="saveButton" class="easyui-linkbutton"  icon="erase">保存</a>
+                        <a href="javascript:" id="subTableButton" class="easyui-linkbutton"  icon="erase">子表</a>
+                        <a href="javascript:" id="advButton" class="easyui-linkbutton"  icon="erase">高级</a>
+                    </td>
+
+                    <td class="tdRightPadding" colspan="2">
+                        <a href="javascript:" id="createButton" class="easyui-linkbutton" icon="erase">生成</a>
+                        <a href="javascript:" id="cancelButton" class="easyui-linkbutton" icon="erase">取消</a>
                     </td>
                 </tr>
             </table>
@@ -662,7 +790,8 @@
             </ul>
 
         </div>
-        <div id="tt" data-options="region:'center',title:''" class="easyui-tabs" style="padding:5px;background:#eee;display:none;">
+        <div id="tt" data-options="region:'center',title:''" class="easyui-tabs"
+             style="padding:5px;background:#eee;display:none;">
             <div title="基本" style="padding:20px;">
                 <table style="font-size: 12px;">
                     <tr>
@@ -761,7 +890,8 @@
                 </table>
             </div>
             <div title="表单" style="padding:20px;">
-                <span>表单类型:<input class="easyui-combobox" id="inputType" style="width: 110px;" name="inputType" data-options="
+                <span>表单类型:<input class="easyui-combobox" id="inputType" style="width: 110px;" name="inputType"
+                                  data-options="
 
                                                 valueField: 'value',
                                                 textField: 'label',
@@ -845,6 +975,58 @@
            data-options="iconCls:'icon-save',plain:true">保存</a>
         <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
            onclick="javascript:$('#advDialog').dialog('close')">取消</a>
+    </div>
+</div>
+<div id="subdgConfigDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
+     data-options="closed:true,buttons:'#addDialog-buttons',modal:true,iconCls:'icon-add'">
+    <form id="subdgConfigForm" action="/systemManager/userManager" method="post">
+        <table style="font-size: 12px;text-align: right">
+            <tr>
+                <td>子表VO:</td>
+                <td class="tdRightPadding">
+                    <input class="easyui-combogrid" value="${vo.subViewObjectId!}" id="subVoId" name="subVoId" style="width:150px" data-options="
+            panelWidth: 500,
+            required:true,
+            idField: 'id',
+            textField: 'title',
+            url: '/systemManager/viewObjectManager?op=view',
+            method: 'get',
+            columns: [[
+                {field:'title',title:'VO名称',width:80},
+                {field:'tableName',title:'表名',width:120},
+                {field:'tableAliasName',title:'别名',width:80,align:'right'},
+                {field:'systemDate',title:'创建时间',width:80,align:'right'}
+            ]],
+            fitColumns: true
+        "/>
+                </td>
+                <td>主表字段:</td>
+                <td class="tdRightPadding"><input value="${vo.selfColumnForSubViewLink!}" name="mainColumnName" style="width:150px" class="f1 easyui-textbox"
+                                                  data-options="required:true,validType:{length:[2,500]}"/>
+                </td>
+                <td>子表字段:</td>
+                <td class="tdRightPadding"><input value="${vo.subViewLinkColumn!}" name="subColumnName" style="width:150px" class="f1 easyui-textbox"
+                                                  data-options="required:true,validType:{length:[2,500]}"/></td>
+            </tr>
+            <tr>
+                <td>引入字段:</td>
+                <td class="tdRightPadding"><input name="importColumn" style="width:150px" class="f1 easyui-textbox"
+                                                  data-options="required:false,validType:{length:[2,500]}"/></td>
+                <td class="tdRightPadding" colspan="2">
+                    <span>增:<input name="subAdd" <#if vo.allowSubViewObjectAdd>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
+                    <span>删:<input name="subDelete" <#if vo.allowSubViewObjectDelete>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
+                    <span>改:<input name="subEdit" <#if vo.allowSubViewObjectEdit>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
+                </td>
+        </table>
+    </form>
+    <div id="addDialog-buttons">
+        <a href="javascript:void(0)" id="deleteSubConfgButton" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:void(0)">删除子表配置</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" id="subdgConfigSaveButton"
+           data-options="iconCls:'icon-save',plain:true">保存</a>
+        <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',plain:true"
+           onclick="javascript:$('#subdgConfigDialog').dialog('close')">取消</a>
+
     </div>
 </div>
 </body>

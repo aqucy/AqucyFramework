@@ -160,7 +160,7 @@
             }
         <#if tableConfig.subViewObjectId gt 0>
             function createSubDataGrid(pvalue) {
-                var initUrl = '/project/addasShop?op=view&addasShop.managerUserId=' + pvalue;
+                var initUrl = '/project/${tableConfig.tableAliasName}/subTableManager?op=view&${tableConfig.tableAliasName}.${tableConfig.subViewLinkColumn}=' + pvalue;
                 initUrl = encodeURI(initUrl);
                 $('#subdg').datagrid(
                         {
@@ -192,40 +192,17 @@
                                         sortable: true,
                                         width: 120
                                     },
-                                    {
-                                        field: 'shopName',
-                                        title: '店铺名称',
-                                        sortable: true,
-                                        width: 120
-                                    },
-                                    {
-                                        field: 'openDate',
-                                        title: '营业时间',
-                                        hidden: false,
-                                        sortable: true,
-                                        width: 120
-                                    },
-                                    {
-                                        field: 'status',
-                                        title: '状态',
-                                        formatter: renderStatus,
-                                        hidden: false,
-                                        sortable: true,
-                                        width: 120
-                                    },
-                                    {
-                                        field: 'age',
-                                        title: '店龄',
-                                        hidden: false,
-                                        sortable: true,
-                                        width: 120
-                                    },
-                                    {
-                                        field: 'address',
-                                        title: '店铺地址',
-                                        sortable: true,
-                                        width: 120
-                                    },
+                                    <#list tableConfig.subTableConfig.allDisplayPojos as pojo>
+                                        {
+                                            field: '${pojo.columnName}',
+                                            title: '${pojo.displayName}',
+                                            <#if pojo.dictCode??>
+                                                formatter: render_${acy[pojo.dictCode]},
+                                            </#if>
+                                            sortable: true,
+                                            width: 120
+                                        },
+                                    </#list>
                                     {
                                         field: 'opt', title: '操作', width: 200, formatter: function (value, rec, index) {
                                         if (!rec.id) {
@@ -595,7 +572,7 @@
                     msg: '操作进行中...'
                 });
                 fm.form('submit', {
-                    url: "/systemManager/userManager",
+                    url: "/project/${tableConfig.tableAliasName}/subTableManager",
                     onSubmit: function () {
                         var isValid = $(this).form('validate');
                         if (!isValid) {
@@ -723,7 +700,7 @@
                             msg: '操作进行中...'
                         });
                         $.ajax({
-                            url: "/systemManager/userManager",
+                            url: "/project/${tableConfig.tableAliasName}/subTableManager",
                             data: {'ids': ids, 'op': 'delete'},
                             type: "Post",
                             dataType: "json",
@@ -997,34 +974,59 @@
                 <form id="subSearchForm" action="/systemManager/userManager" method="post">
                     <input type="hidden" name="op" value="view"/>
                     <table style="font-size: 12px;text-align: right">
-                        <tr>
-                            <td>店铺名称:</td>
-                            <td class="tdRightPadding"><input name="addasShop.shopName"
-                                                              data-options="validType:{length:[3,15]}"
-                                                              class="f1 easyui-textbox"/></td>
-                            <td>地址:</td>
-                            <td class="tdRightPadding"><input name="addasShop.address" class="f1 easyui-textbox"
-                                                              data-options="validType:['length[6,18]']"/>
-                            </td>
-                            <td>状态:</td>
-                            <td class="tdRightPadding"><input id="subSearch_status" style="width: 110px;"
-                                                              class="easyui-combobox"
-                                                              name="user.status"
-                                                              data-options="
-                    onShowPanel:function(){showCombboxData('subSearch_status','acyframework_users_status')},
+                        <#list tableConfig.subTableConfig.allQueryPojos as pojo>
+                            <#if pojo.maxLength gt 0 && pojo.validateType??>
+                                <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
+                            <#elseif pojo.maxLength gt 0>
+                                <#assign validate=",validType:{length:[0,${pojo.maxLength}]}">
+                            <#elseif pojo.validateType??>
+                                <#assign validate=",validType:'${pojo.validateType}'">
+                            <#else>
+                                <#assign validate="">
+                            </#if>
+                            <#assign tdCount=tdCount+1>
+                            <#if pojo_index%3==0&&pojo_has_next>
+                            <tr>
+                            </#if>
+                            <td>${pojo.displayName}:</td>
+                        <td class="tdRightPadding">
+                            <#if tdCount==3&&!pojo_has_next>
+                                <#assign inputStyle="style='width:110px'">
+                            <#else>
+                                <#assign inputStyle="">
+                            </#if>
+                            <#if pojo.dictCode??>
+                                <input id="search_${pojo.columnName}" ${inputStyle}  class="easyui-combobox"
+                                       name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                       data-options="
+                     onShowPanel:function(){showCombboxData('search_${pojo.columnName}','${pojo.dictCode}')},
                     method:'get',
+                    required:false,
                     valueField:'value',
                     textField:'label',
                     editable:false,
-                    panelHeight:'auto'">
-
-                                <a href="javascript:" title="查询" id="subSearchButton" class="easyui-linkbutton"
-                                   icon="find"></a><a
-                                        href="javascript:" title="重置" id="subResetButton" class="easyui-linkbutton"
-                                        icon="erase"></a>
-
+                    panelHeight:'auto'${validate}">
+                            <#else>
+                                <input  ${inputStyle}  name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                                       data-options="required:false${validate}" class="f1 easyui-textbox"/>
+                            </#if>
+                            <#if tdCount==3&&!pojo_has_next>
+                                <a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find"></a><a
+                                    href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase"></a>
                             </td>
-                        </tr>
+                            <#elseif !pojo_has_next>
+                                </td>
+                                <td></td>
+                                <td><a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find">查询</a><a
+                                        href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase">重置</a></td>
+                            <#else>
+                                </td>
+                            </#if>
+                            <#if tdCount==3||!pojo_has_next>
+                                <#assign tdCount=0>
+                            </tr>
+                            </#if>
+                        </#list>
                     </table>
                 </form>
             </div>
@@ -1043,60 +1045,54 @@
         <form id="subAddForm" action="/systemManager/userManager" method="post">
             <input type="hidden" name="op" value="add"/>
             <table style="font-size: 12px;text-align: right">
-                <tr>
-                    <td>登录ID:</td>
-                    <td class="tdRightPadding"><input name="user.username"
-                                                      data-options="required:true,validType:{length:[3,15]}"
-                                                      class="f1 easyui-textbox"/></td>
-                    <td>密码:</td>
-                    <td class="tdRightPadding"><input name="user.password" class="f1 easyui-textbox"
-                                                      data-options="required:true,validType:['length[6,18]']"/>
-                    </td>
-                    <td>姓名:</td>
-                    <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
-                                                      data-options="required:true,validType:{length:[2,4]}"/></td>
-                </tr>
-                <tr>
-                    <td>性别:</td>
-                    <td class="tdRightPadding"><input id="subAdd_sex" required="true" class="easyui-combobox"
-                                                      name="user.sex"
-                                                      data-options="
-                    onShowPanel:function(){showCombboxData('subAdd_sex','acyframework_users_sex')},
+                <#list tableConfig.subTableConfig.allAddPojos as pojo>
+                    <#if pojo.maxLength gt 0 && pojo.validateType??>
+                        <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
+                    <#elseif pojo.maxLength gt 0>
+                        <#assign validate=",validType:{length:[0,${pojo.maxLength}]}">
+                    <#elseif pojo.validateType??>
+                        <#assign validate=",validType:'${pojo.validateType}'">
+                    <#else>
+                        <#assign validate="">
+                    </#if>
+                    <#assign tdCount=tdCount+1>
+                    <#if pojo_index%3==0&&pojo_has_next>
+                    <tr>
+                    </#if>
+                    <td>${pojo.displayName}:</td>
+                    <td class="tdRightPadding">
+                        <#if tdCount==3&&!pojo_has_next>
+                            <#assign inputStyle="style='width:110px'">
+                        <#else>
+                            <#assign inputStyle="">
+                        </#if>
+                        <#if pojo.dictCode??>
+                            <input id="add_${pojo.columnName}" ${inputStyle}  class="easyui-combobox"
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="
+                     onShowPanel:function(){showCombboxData('add_${pojo.columnName}','${pojo.dictCode}')},
                     method:'get',
+                    required:${pojo.required?c},
                     valueField:'value',
                     textField:'label',
                     editable:false,
-                    panelHeight:'auto'">
+                    panelHeight:'auto'${validate}">
+                        <#elseif pojo.inputType??&&pojo.inputType=="selectInput">
+                            <input id="add_${pojo.columnName}" ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
+                                   data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','add')}"
+                                   style="width:170px;height:24px;">
+                        <#else>
+                            <input id="add_${pojo.columnName}"  ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="required:${pojo.required?c}${validate}" class="f1 easyui-textbox"/>
+                        </#if>
                     </td>
-                    <td>状态:</td>
-                    <td class="tdRightPadding"><input id="subAdd_status" required="true" class="easyui-combobox"
-                                                      name="user.status"
-                                                      data-options="
-                    onShowPanel:function(){showCombboxData('subAdd_status','acyframework_users_status')},
-                    method:'get',
-                    valueField:'value',
-                    textField:'label',
-                    editable:false,
-                    panelHeight:'auto'">
-                    </td>
-                    <td>手机:</td>
-                    <td class="tdRightPadding"><input name="user.mobile" class="f1 easyui-textbox"/></td>
-                </tr>
-                <tr>
-                    <td>固定电话:</td>
-                    <td class="tdRightPadding"><input name="user.phone" class="f1 easyui-textbox"/></td>
-                    <td>地址:</td>
-                    <td class="tdRightPadding"><input name="user.address" class="f1 easyui-textbox"
-                                                      data-options="required:false,validType:['length[1,255]']"/>
-                    </td>
-                    <td>QQ号码:</td>
-                    <td class="tdRightPadding"><input name="user.QQ" class="f1 easyui-textbox"/></td>
-                </tr>
-                <tr>
-                    <td>邮箱地址:</td>
-                    <td class="tdRightPadding"><input name="user.mail" class="f1 easyui-textbox"
-                                                      data-options="validType:['email']"/></td>
-                </tr>
+                    <#if tdCount==3||!pojo_has_next>
+                        <#assign tdCount=0>
+                    </tr>
+                    </#if>
+                </#list>
 
             </table>
         </form>
@@ -1113,60 +1109,55 @@
             <input type="hidden" name="op" value="edit"/>
             <input type="hidden" name="user.id" value="0"/>
             <table style="font-size: 12px;text-align: right">
-                <tr>
-                    <td>登录ID:</td>
-                    <td class="tdRightPadding"><input name="user.username"
-                                                      data-options="required:true,validType:{length:[3,15]}"
-                                                      class="f1 easyui-textbox"/></td>
-                    <td>密码:</td>
-                    <td class="tdRightPadding"><input name="user.password" class="f1 easyui-textbox"
-                                                      data-options="required:true,validType:['length[6,18]']"/>
-                    </td>
-                    <td>姓名:</td>
-                    <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
-                                                      data-options="required:true,validType:{length:[2,4]}"/></td>
-                </tr>
-                <tr>
-                    <td>性别:</td>
-                    <td class="tdRightPadding"><input id="subEdit_sex" required="true" class="easyui-combobox"
-                                                      name="user.sex"
-                                                      data-options="
-                    onShowPanel:function(){showCombboxData('subEdit_sex','acyframework_users_sex')},
+                <#list tableConfig.subTableConfig.allEditPojos as pojo>
+                    <#if pojo.maxLength gt 0 && pojo.validateType??>
+                        <#assign validate=",validType:['${pojo.validateType}','length[0,${pojo.maxLength}]']">
+                    <#elseif pojo.maxLength gt 0>
+                        <#assign validate=",validType:{length:[0,${pojo.maxLength}]}">
+                    <#elseif pojo.validateType??>
+                        <#assign validate=",validType:'${pojo.validateType}'">
+                    <#else>
+                        <#assign validate="">
+                    </#if>
+                    <#assign tdCount=tdCount+1>
+                    <#if pojo_index%3==0&&pojo_has_next>
+                    <tr>
+                    </#if>
+                    <td>${pojo.displayName}:</td>
+                    <td class="tdRightPadding">
+
+                        <#if tdCount==3&&!pojo_has_next>
+                            <#assign inputStyle="style='width:110px'">
+                        <#else>
+                            <#assign inputStyle="">
+                        </#if>
+                        <#if pojo.dictCode??>
+                            <input id="edit_${pojo.columnName}" ${inputStyle}  class="easyui-combobox"
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="
+                     onShowPanel:function(){showCombboxData('edit_${pojo.columnName}','${pojo.dictCode}')},
                     method:'get',
+                    required:${pojo.required?c},
                     valueField:'value',
                     textField:'label',
                     editable:false,
-                    panelHeight:'auto'">
+                    panelHeight:'auto'${validate}">
+                        <#elseif pojo.inputType??&&pojo.inputType=="selectInput">
+                            <input id="edit_${pojo.columnName}" ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
+                                   data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','edit')}"
+                                   style="width:170px;height:24px;">
+                        <#else>
+                            <input id="edit_${pojo.columnName}"  ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="required:${pojo.required?c}${validate}" class="f1 easyui-textbox"/>
+                        </#if>
                     </td>
-                    <td>状态:</td>
-                    <td class="tdRightPadding"><input required="true" id="subEdit_status" class="easyui-combobox"
-                                                      name="user.status"
-                                                      data-options="
-                    onShowPanel:function(){showCombboxData('subEdit_status','acyframework_users_status')},
-                    method:'get',
-                    valueField:'value',
-                    textField:'label',
-                    editable:false,
-                    panelHeight:'auto'">
-                    </td>
-                    <td>手机:</td>
-                    <td class="tdRightPadding"><input name="user.mobile" class="f1 easyui-textbox"/></td>
-                </tr>
-                <tr>
-                    <td>固定电话:</td>
-                    <td class="tdRightPadding"><input name="user.phone" class="f1 easyui-textbox"/></td>
-                    <td>地址:</td>
-                    <td class="tdRightPadding"><input name="user.address" class="f1 easyui-textbox"
-                                                      data-options="required:false,validType:['integer','length[1,5]']"/>
-                    </td>
-                    <td>QQ号码:</td>
-                    <td class="tdRightPadding"><input name="user.QQ" class="f1 easyui-textbox"/></td>
-                </tr>
-                <tr>
-                    <td>邮箱地址:</td>
-                    <td class="tdRightPadding"><input name="user.mail" class="f1 easyui-textbox"
-                                                      data-options="validType:['email']"/></td>
-                </tr>
+                    <#if tdCount==3||!pojo_has_next>
+                        <#assign tdCount=0>
+                    </tr>
+                    </#if>
+                </#list>
 
             </table>
         </form>
