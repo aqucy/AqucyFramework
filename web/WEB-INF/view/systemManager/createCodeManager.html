@@ -384,10 +384,12 @@
                     var mainConfig = $("#mainConfigForm").serializeJson();
                     json.tableName = mainConfig.tableName;
                     json.alias = mainConfig.alias;
+                    json.primaryKey = mainConfig.primaryKey;
                     json.title = mainConfig.title;
                     json.add = mainConfig.add;
-                    json.delete = mainConfig.delete;
+                    json["delete"] = mainConfig["delete"];
                     json.edit = mainConfig.edit;
+                    json.templateName = mainConfig.templateName;
                 }
             }
             $("#saveButton").click(function(){
@@ -593,7 +595,12 @@
             $("#inputType").combobox({
                 //如果输入框类型为弹出选择框
                 onSelect: function (data) {
-                    $("#selectInputConfig").css("display", "");
+                    if(data.value=="selectInput"){
+                        $("#selectInputConfig").css("display", "");
+                    }else{
+                        clearSelectInputConfigDg();
+                        $("#selectInputConfig").css("display", "none");
+                    }
                 }
             });
             //清除弹出选择框配置DATAGRID的列及数据
@@ -712,13 +719,57 @@
             });
             ////////////////////////////////////子表配置///////////////////
             $("#subTableButton").click(function(){
+                endEditing("dg");
                 $("#subdgConfigDialog").dialog('open').dialog('setTitle', '子表配置');
+                //苑取主表字段
+                var rows = $('#dg').datagrid("getData").rows;
+                var mainJson = [];
+                mainJson.push({"label":"id","value":"id"});
+                for (var i = 0; i < rows.length; i++) {
+                    var json = {};
+                    var displayName = rows[i].displayName;
+                    if(displayName==""||displayName==undefined||displayName==null){
+                        displayName = rows[i].columnName;
+                    }
+                    json.label = displayName;
+                    json.value = rows[i].columnName;
+                    mainJson.push(json);
+                }
+                $("#mainColumnName").combobox("loadData", mainJson);
+                //获取子表字段
+                var v = $("#subVoId").val();
+                if(v!=""){
+                    readSubColumn(v);
+                }
             });
+            function readSubColumn(vid){
+                //subColumnName
+                $.ajax({
+                    type: 'POST',
+                    url: "/systemManager/getVoColumn",
+                    data: {
+                        id: vid
+                    },
+                    success: function (data) {
+                        $.messager.progress('close');
+                        if (data.errcode > 0) {
+                            alert(data.errmsg);
+                        } else {
+                            $("#subColumnName").combobox("loadData",data.datas);
+                        }
+                    },
+                    dataType: "json"
+                });
+            }
             $("#subdgConfigSaveButton").click(function(){
                 var isValid = $("#subdgConfigForm").form('validate');
                 if(isValid){
-                    console.log($("#subdgConfigForm").serializeJson());
                     $('#subdgConfigDialog').dialog('close');
+                }
+            });
+            $("#subVoId").combogrid({
+                onSelect:function(r){
+                    readSubColumn($("#subdgConfigForm").serializeJson().subVoId);
                 }
             });
             //选迟1秒钟后渲染页面
@@ -739,7 +790,7 @@
 
         <form id="mainConfigForm" action="/systemManager/userManager" method="post">
             <input type="hidden" id="op" name="op" value=""/>
-            <input type="hidden" name="target" value="easyui"/>
+            <input type="hidden" name="templateName" value="easyui"/>
             <table style="font-size: 12px;text-align: right">
                 <tr>
                     <td>菜单名:</td>
@@ -759,12 +810,15 @@
                     </td>
                 </tr>
                 <tr>
-                    <td></td>
-                    <td class="tdRightPadding">
-                        <span>增:<input name="add" <#if vo.allowAdd>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
-                        <span>删:<input name="delete" <#if vo.allowDelete>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
-                        <span>改:<input name="edit" <#if vo.allowEdit>checked</#if> type="checkbox" class="easyui-checkbox"/></span>
+                    <td>主键:</td>
+                    <td class="tdRightPadding"><input id="primaryKey" name="primaryKey" value="${vo.primaryKey!}" class="f1 easyui-textbox" style="width: 100px"
+                                                      data-options="required:true,validType:['length[2,255]']"/>
                     </td>
+                    <!--<td class="tdRightPadding">-->
+                        <!--<span>增:<input name="add" <#if vo.allowAdd>checked</#if> type="checkbox" class="easyui-checkbox"/></span>-->
+                        <!--<span>删:<input name="delete" <#if vo.allowDelete>checked</#if> type="checkbox" class="easyui-checkbox"/></span>-->
+                        <!--<span>改:<input name="edit" <#if vo.allowEdit>checked</#if> type="checkbox" class="easyui-checkbox"/></span>-->
+                    <!--</td>-->
 
                     <td class="tdRightPadding" colspan="2">
                         <a href="javascript:" id="saveButton" class="easyui-linkbutton"  icon="erase">保存</a>
@@ -823,7 +877,7 @@
                 <table style="font-size: 12px;">
                     <tr>
                         <td style="text-align: right">验证器:</td>
-                        <td class="tdRightPadding"><input type="text" class="easyui-combobox" name="validateType"
+                        <td class="tdRightPadding"><input type="text" style="width: 150px;" class="easyui-combobox" name="validateType"
                                                           data-options="
                                                 valueField: 'value',
                                                 textField: 'label',
@@ -890,7 +944,7 @@
                 </table>
             </div>
             <div title="表单" style="padding:20px;">
-                <span>表单类型:<input class="easyui-combobox" id="inputType" style="width: 110px;" name="inputType"
+                <span>表单类型:<input class="easyui-combobox" id="inputType" style="width: 150px;" name="inputType"
                                   data-options="
 
                                                 valueField: 'value',
@@ -1001,12 +1055,24 @@
         "/>
                 </td>
                 <td>主表字段:</td>
-                <td class="tdRightPadding"><input value="${vo.selfColumnForSubViewLink!}" name="mainColumnName" style="width:150px" class="f1 easyui-textbox"
-                                                  data-options="required:true,validType:{length:[2,500]}"/>
+                <td class="tdRightPadding">
+                    <input class="easyui-combobox" id="mainColumnName"  style="width: 110px;" value="${vo.selfColumnForSubViewLink!}" name="mainColumnName"
+                           data-options="
+
+                                                valueField: 'value',
+                                                textField: 'label',
+                                                required:true
+                        "/>
                 </td>
                 <td>子表字段:</td>
-                <td class="tdRightPadding"><input value="${vo.subViewLinkColumn!}" name="subColumnName" style="width:150px" class="f1 easyui-textbox"
-                                                  data-options="required:true,validType:{length:[2,500]}"/></td>
+                <td class="tdRightPadding">
+                    <input class="easyui-combobox" id="subColumnName"  style="width: 110px;" value="${vo.subViewLinkColumn!}" name="subColumnName"
+                           data-options="
+
+                                                valueField: 'value',
+                                                textField: 'label',
+                                                required:true
+                        "/>
             </tr>
             <tr>
                 <td>引入字段:</td>

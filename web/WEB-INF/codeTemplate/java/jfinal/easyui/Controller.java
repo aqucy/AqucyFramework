@@ -25,24 +25,36 @@ public class ${tableConfig.tableAliasName?cap_first}Controller extends Controlle
         Map jo = new ConcurrentHashMap();
         jo.put("success", true);
         if ("add".equalsIgnoreCase(op)) {
-            try {
+        try {
+            if(AqucyTools.isPermission("${tableConfig.tableAliasName}_add")){
                 model.save();
                 jo.put("errcode", 0);
-            } catch (Exception e) {
-                DbKit.getConfig().getConnection().rollback();
-                jo.put("errcode", 1104);
-                jo.put("errmsg", "系统后台异常,请联系管理员");
-                e.printStackTrace();
+            }else{
+                jo.put("errcode",1);
+                jo.put("errmsg","对不起,权限不足,无法执行该操作");
             }
+
+        } catch (Exception e) {
+            DbKit.getConfig().getConnection().rollback();
+            jo.put("errcode", 1104);
+            jo.put("errmsg", "系统后台异常,请联系管理员");
+            e.printStackTrace();
+        }
             renderJson(jo);
         } else if ("edit".equalsIgnoreCase(op)) {
             try {
-                ${tableConfig.tableName?cap_first}Model um = ${tableConfig.tableName?cap_first}Model.dao.findById(model.getLong("id"));
-                if(um==null){
-                    jo.put("errcode", 1112);
-                    jo.put("errmsg", "查无此数据,无法编辑");
-                }else {
-                     model.update();
+                if(AqucyTools.isPermission("${tableConfig.tableAliasName}_edit")){
+                    ${tableConfig.tableName?cap_first}Model um = ${tableConfig.tableName?cap_first}Model.dao.findById(model.getLong("${tableConfig.primaryKey}"));
+                    if(um==null){
+                        jo.put("errcode", 1112);
+                        jo.put("errmsg", "查无此数据,无法编辑");
+                    }else {
+                        model.update();
+                        jo.put("errcode", 0);
+                    }
+                }else{
+                    jo.put("errcode",1);
+                    jo.put("errmsg","对不起,权限不足,无法执行该操作");
                 }
             } catch (Exception e) {
                 jo.put("errcode", 1104);
@@ -51,6 +63,12 @@ public class ${tableConfig.tableAliasName?cap_first}Controller extends Controlle
             }
             renderJson(jo);
         } else if ("view".equalsIgnoreCase(op)) {
+            if(AqucyTools.isPermission("${tableConfig.tableAliasName}_view")==false){
+                jo.put("errcode",1);
+                jo.put("errmsg","对不起,权限不足,无法执行该操作");
+                renderJson(jo);
+                return;
+            }
             int start = getParaToInt("page",1);
             int limit = getParaToInt("rows",10);
             start = (start-1)*limit;
@@ -91,17 +109,50 @@ public class ${tableConfig.tableAliasName?cap_first}Controller extends Controlle
             jo.put("rows", page.getList());
             renderJson(jo);
         }else if ("delete".equalsIgnoreCase(op)) {
-            String ids = getPara("ids");
-            if(StrKit.notBlank(ids)){
-                Db.update("delete from ${tableConfig.tableName} where id in(" + ids + ")");
+            if(AqucyTools.isPermission("${tableConfig.tableAliasName}_delete")){
+                String ids = getPara("ids");
+                if(StrKit.notBlank(ids)){
+                    Db.update("delete from ${tableConfig.tableName} where ${tableConfig.primaryKey} in(" + ids + ")");
+                }
+                jo.put("errcode", 0);
+            }else{
+                jo.put("errcode",1);
+                jo.put("errmsg","对不起,权限不足,无法执行该操作");
             }
-            jo.put("errcode", 0);
             renderJson(jo);
         }else if("popGrid".equalsIgnoreCase(op)){
             AqucyTools tools = new AqucyTools();
             tools.doPopGrid(this);
         }else {
-            render("/WEB-INF/view/project/${tableConfig.tableAliasName}.html");
+            if(AqucyTools.isPermission("${tableConfig.tableAliasName}_view")){
+                if(AqucyTools.isPermission("${tableConfig.tableAliasName}_add")){
+                    setAttr("add",true);
+                }else{
+                    setAttr("add",false);
+                }
+
+                if(AqucyTools.isPermission("${tableConfig.tableAliasName}_delete")){
+                    setAttr("delete",true);
+                }else{
+                    setAttr("delete",false);
+                }
+
+                if(AqucyTools.isPermission("${tableConfig.tableAliasName}_edit")){
+                    setAttr("edit",true);
+                }else{
+                    setAttr("edit",false);
+                }
+
+                if(AqucyTools.isPermission("${tableConfig.tableAliasName}_query")){
+                    setAttr("query",true);
+                }else{
+                    setAttr("query",false);
+                }
+                render("/WEB-INF/view/project/${tableConfig.tableAliasName}.html");
+            }else{
+                renderText("对不起,权限不足,无法执行该操作");
+            }
+
         }
     }
 <#if tableConfig.subViewObjectId gt 0>
@@ -123,12 +174,13 @@ public class ${tableConfig.tableAliasName?cap_first}Controller extends Controlle
             renderJson(jo);
         } else if ("edit".equalsIgnoreCase(op)) {
             try {
-                ${tableConfig.subTableConfig.tableName?cap_first}Model um = ${tableConfig.subTableConfig.tableName?cap_first}Model.dao.findById(model.getLong("id"));
+                ${tableConfig.subTableConfig.tableName?cap_first}Model um = ${tableConfig.subTableConfig.tableName?cap_first}Model.dao.findById(model.getLong("${tableConfig.subTableConfig.primaryKey}"));
                 if(um==null){
                     jo.put("errcode", 1112);
                     jo.put("errmsg", "查无此数据,无法编辑");
                 }else {
                      model.update();
+                    jo.put("errcode", 0);
                 }
             } catch (Exception e) {
                 jo.put("errcode", 1104);
@@ -179,7 +231,7 @@ public class ${tableConfig.tableAliasName?cap_first}Controller extends Controlle
         }else if ("delete".equalsIgnoreCase(op)) {
             String ids = getPara("ids");
             if(StrKit.notBlank(ids)){
-                Db.update("delete from ${tableConfig.subTableConfig.tableName} where id in(" + ids + ")");
+                Db.update("delete from ${tableConfig.subTableConfig.tableName} where ${tableConfig.subTableConfig.primaryKey} in(" + ids + ")");
             }
             jo.put("errcode", 0);
             renderJson(jo);

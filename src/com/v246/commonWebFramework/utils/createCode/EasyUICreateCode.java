@@ -2,10 +2,13 @@ package com.v246.commonWebFramework.utils.createCode;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jfinal.aop.Before;
 import com.jfinal.kit.JsonKit;
 import com.jfinal.kit.PathKit;
 import com.jfinal.kit.StrKit;
+import com.jfinal.plugin.activerecord.DbKit;
 import com.jfinal.plugin.activerecord.Table;
+import com.jfinal.plugin.activerecord.tx.Tx;
 import com.sun.org.apache.bcel.internal.generic.POP;
 import com.v246.commonWebFramework.dao.*;
 import com.v246.commonWebFramework.utils.AqucyTools;
@@ -35,7 +38,6 @@ public class EasyUICreateCode implements  ICreateCode{
                 return root.get("errmsg").toString();
             }
             TableConfig tableConfig = (TableConfig)root.get("tableConfig");
-            tools.saveConfigToDb(tableConfig);
             if(tableConfig.getSubViewObjectId()>0){
                 List<ViewObjectColumnConfigModel> list = ViewObjectColumnConfigModel.dao.find("SELECT * FROM acyframework_view_object_columns_config where viewObjectId=?", tableConfig.getSubViewObjectId());
                 Map mp = new HashMap();
@@ -53,7 +55,24 @@ public class EasyUICreateCode implements  ICreateCode{
                 json = json.replace("false","\"\"");
                 json = json.replace("\"null\"","\"\"");
                 json = json.replace(":null",":\"\"");
-                tableConfig.setSubTableConfig((TableConfig)(tools.resolveToRootMap(json).get("tableConfig")));
+                Map subRoot = tools.resolveToRootMap(json);
+                TableConfig subTableConfig = (TableConfig)(subRoot.get("tableConfig"));
+                if(tableConfig.isSubAdd()==false&&tableConfig.isSubEdit()==false){
+                    subTableConfig.setHasSelectInput(false);
+                }
+                for(ColumnPojo pojo:subTableConfig.getAllAddPojos()){
+                    if(pojo.getColumnName().equalsIgnoreCase(tableConfig.getSubViewLinkColumn())){
+                        subTableConfig.getAllAddPojos().remove(pojo);
+                    }
+                }
+                for(ColumnPojo pojo:subTableConfig.getAllEditPojos()){
+                    if(pojo.getColumnName().equalsIgnoreCase(tableConfig.getSubViewLinkColumn())){
+                        subTableConfig.getAllEditPojos().remove(pojo);
+                    }
+                }
+                tableConfig.setSubTableConfig(subTableConfig);
+                Object subAcy = subRoot.get("acy");
+                root.put("subAcy", subAcy);
             }
             createView(root);
             createJava(root);
@@ -79,6 +98,7 @@ public class EasyUICreateCode implements  ICreateCode{
             Template template = config.getTemplate(path, "UTF-8");
             template.process(root, writer);
             String str = writer.toString();
+            str = replaceFreemarkerFlag(str);
             File file = new File(PathKit.getWebRootPath()+"/WEB-INF/view/project/"+tableAliasName+".html");
             FileOutputStream out = new FileOutputStream(file);
             out.write(str.getBytes());
@@ -94,6 +114,25 @@ public class EasyUICreateCode implements  ICreateCode{
         }
         return re;
     }
+    private String replaceFreemarkerFlag(String str){
+        str = str.replace("<aqu_add>","<#if add>");
+        str = str.replace("</aqu_add>","</#if>");
+
+        str = str.replace("<aqu_delete>","<#if delete>");
+        str = str.replace("</aqu_delete>","</#if>");
+
+        str = str.replace("<aqu_edit>","<#if edit>");
+        str = str.replace("</aqu_edit>","</#if>");
+
+        str = str.replace("<aqu_query>","<#if query>");
+        str = str.replace("</aqu_query>","</#if>");
+
+        str = str.replace("<aqu_add_or_edit>","<#if add||edit>");
+        str = str.replace("</aqu_add_or_edit>","</#if>");
+
+        return str;
+    }
+    @Before(Tx.class)
     private boolean createJava(Map root) throws Exception{
         StringWriter writer = new StringWriter();
         boolean re = false;
@@ -101,7 +140,7 @@ public class EasyUICreateCode implements  ICreateCode{
             TableConfig tableConfig = (TableConfig)root.get("tableConfig");
             String tableName = tableConfig.getTableName();
             String tableAliasName = tableConfig.getTableAliasName();
-            String srcPath = PathKit.getWebRootPath().substring(0, PathKit.getWebRootPath().length() - 4);
+            String srcPath = AqucyTools.getSrcPath();
             Configuration config = new Configuration();
             String path = "/WEB-INF/codeTemplate/java/jfinal/easyui/Controller.java";
             FileTemplateLoader fileLoader = new FileTemplateLoader(new File(PathKit.getWebRootPath()));
@@ -114,6 +153,7 @@ public class EasyUICreateCode implements  ICreateCode{
             out.write(str.getBytes());
             out.close();
 
+
             path = "/WEB-INF/codeTemplate/java/jfinal/easyui/Model.java";
             writer = new StringWriter();
            fileLoader = new FileTemplateLoader(new File(PathKit.getWebRootPath()));
@@ -121,7 +161,7 @@ public class EasyUICreateCode implements  ICreateCode{
             template = config.getTemplate(path, "UTF-8");
             template.process(root, writer);
             str = writer.toString();
-            file = new File(srcPath+"/src/com/v246/project/model/"+StrKit.firstCharToUpperCase(tableAliasName)+"Model.java");
+            file = new File(srcPath+"/src/com/v246/project/model/"+StrKit.firstCharToUpperCase(tableName)+"Model.java");
             out = new FileOutputStream(file);
             out.write(str.getBytes());
             out.close();
@@ -152,7 +192,7 @@ public class EasyUICreateCode implements  ICreateCode{
                 data = br.readLine(); //接着读下一行
             }
             String modelClass = StrKit.firstCharToUpperCase(tableName)+"Model.class";
-            String modelfullStr = "arpMysql.addMapping(\"{1}\", {2});";
+            String modelfullStr = "arpMysql.addMapping(\"{1}\",\"{3}\", {2});";
             String  controllerStr = "me.add(\"/project/{1}\", {2}Controller.class);";
 
             String subModelClass = null;
@@ -161,11 +201,17 @@ public class EasyUICreateCode implements  ICreateCode{
 
 
             str = sb.toString();
-            if(str.indexOf(modelClass)==-1){
-                modelfullStr = modelfullStr.replace("{1}",tableName).replace("{2}",modelClass);
-                controllerStr = controllerStr.replace("{1}",tableAliasName).replace("{2}",StrKit.firstCharToUpperCase(tableAliasName));
-                str = str.replace("//{route}",controllerStr+"\n//{route}");
-                str = str.replace("//{model}", modelfullStr + "\n//{model}");
+            controllerStr = controllerStr.replace("{1}",tableAliasName).replace("{2}",StrKit.firstCharToUpperCase(tableAliasName));
+            modelfullStr = modelfullStr.replace("{1}",tableName).replace("{2}",modelClass).replace("{3}",tableConfig.getPrimaryKey());
+            if(str.indexOf(modelClass)==-1||str.indexOf(controllerStr)==-1){
+                if(str.indexOf(modelClass)==-1){
+                    str = str.replace("//{model}", modelfullStr + "\n//{model}");
+                }
+                if(str.indexOf(controllerStr)==-1){
+                    str = str.replace("//{route}",controllerStr+"\n//{route}");
+                }
+
+
                 if(tableConfig.getSubTableConfig()!=null){
                     subModelClass = StrKit.firstCharToUpperCase(tableConfig.getSubTableConfig().getTableName())+"Model.class";
                     if(str.indexOf(subModelClass)!=-1){
@@ -173,6 +219,7 @@ public class EasyUICreateCode implements  ICreateCode{
                         str = str.replace("//{model}", subModelfullStr + "\n//{model}");
                     }
                 }
+
                 file = new File(jfinalConfigPath);
                 out = new FileOutputStream(file);
                 out.write(str.getBytes());
@@ -184,8 +231,41 @@ public class EasyUICreateCode implements  ICreateCode{
                 menu = new MenuModel();
                 menu.set("url", "/project/"+tableAliasName);
                 menu.set("text", tableConfig.getTitle());
+                menu.set("voId", tableConfig.getId());
+                menu.set("permissionGroupName", tableConfig.getTableAliasName());
                 menu.set("parentId", 0);
+                menu.put("readOnly", true);
                 menu.save();
+                //添加权限
+                PermissionsModel pm = new PermissionsModel();
+                pm.set("permission",tableConfig.getTableAliasName()+"_add");
+                pm.set("description","增加");
+                pm.set("groupName",tableConfig.getTableAliasName());
+                pm.save();
+
+                pm = new PermissionsModel();
+                pm.set("permission",tableConfig.getTableAliasName()+"_delete");
+                pm.set("description","删除");
+                pm.set("groupName",tableConfig.getTableAliasName());
+                pm.save();
+
+                pm = new PermissionsModel();
+                pm.set("permission",tableConfig.getTableAliasName()+"_edit");
+                pm.set("description","修改");
+                pm.set("groupName",tableConfig.getTableAliasName());
+                pm.save();
+
+                pm = new PermissionsModel();
+                pm.set("permission",tableConfig.getTableAliasName()+"_query");
+                pm.set("description","查询");
+                pm.set("groupName",tableConfig.getTableAliasName());
+                pm.save();
+
+                pm = new PermissionsModel();
+                pm.set("permission",tableConfig.getTableAliasName()+"_view");
+                pm.set("description","浏览");
+                pm.set("groupName",tableConfig.getTableAliasName());
+                pm.save();
             }
 
         }catch (Exception e){

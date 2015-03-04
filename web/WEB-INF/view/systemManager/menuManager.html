@@ -59,13 +59,20 @@
                         name: "icon",
                         id: "iconInput",
                         width: 200
+                    },
+                    {
+                        fieldLabel: "权限组代码",
+                        xtype: "textfield",
+                        name: "permissionGroupName",
+                        id: "permissionGroupName",
+                        width: 200
                     }
                 ]
             })
             //添加编辑菜单时用的窗体
             var popWin = new Ext.Window({
                 width: 350,
-                height: 170,
+                height: 190,
                 modal: true,
                 constrain: true,
                 closeAction: "hide",
@@ -99,6 +106,7 @@
                             menuName: form1.findById("menuNameInput").getValue(),
                             url: form1.findById("urlAddasInput").getValue(),
                             icon: form1.findById("iconInput").getValue(),
+                            permissionGroupName: form1.findById("permissionGroupName").getValue(),
                             op: form1.data.op,
                             id: form1.data.id
                         },
@@ -157,6 +165,7 @@
                                         form1.findById("menuNameInput").setValue("");
                                         urlAddasInput.setValue("");
                                         form1.findById("iconInput").setValue("");
+                                        form1.findById("permissionGroupName").setValue("");
                                         form1.data = {
                                             op: "subAdd",
                                             id: node.id
@@ -169,13 +178,22 @@
                                     iconCls: 'leaf',
                                     handler: function () {
                                         var urlAddasInput = form1.findById("urlAddasInput");
+                                        var permissionGroupNameInput = form1.findById("permissionGroupName");
                                         form1.findById("menuNameInput").setValue(node.text);
                                         urlAddasInput.setValue(node.attributes.url);
                                         form1.findById("iconInput").setValue(node.attributes.icon);
-                                        if (!node.isLeaf()) {
+                                        permissionGroupNameInput.setValue(node.attributes.permissionGroupName);
+                                        if(node.attributes.readOnly){
                                             urlAddasInput.disable();
-                                        } else {
-                                            urlAddasInput.enable();
+                                            permissionGroupNameInput.disable();
+                                        }else{
+                                            if (!node.isLeaf()) {
+                                                urlAddasInput.disable();
+                                                permissionGroupNameInput.disable();
+                                            } else {
+                                                urlAddasInput.enable();
+                                                permissionGroupNameInput.enable();
+                                            }
                                         }
                                         form1.data = {
                                             op: "edit",
@@ -193,12 +211,17 @@
                                             url: '/systemManager/menuManager?op=delete&id=' + node.id,
                                             //根据id删除节点
                                             success: function (request) {
-                                                tree.root.reload();
-                                                tree.root.expand(true, false);
+                                                var json =  Ext.decode(request.responseText);
+                                                if(json.errcode>0){
+                                                    Ext.Msg.alert("", json.errmsg);
+                                                }else{
+                                                    tree.root.reload();
+                                                    tree.root.expand(true, false);
+                                                }
                                                 loadMarsk.hide();
                                             },
                                             failure: function () {
-                                                alert("删除失败");
+                                                Ext.Msg.alert("", "删除失败");
                                                 loadMarsk.hide();
                                             }
                                         });
@@ -216,6 +239,7 @@
                                         form1.findById("menuNameInput").setValue("");
                                         urlAddasInput.setValue("");
                                         form1.findById("iconInput").setValue("");
+                                        form1.findById("permissionGroupName").setValue("");
                                         form1.data = {
                                             op: "subAdd",
                                             id: node.id
@@ -255,10 +279,16 @@
                     },
                     //根据id删除节点
                     success: function (request) {
+                       var json =  Ext.decode(request.responseText);
+                        if(json.errcode>0){
+                            Ext.Msg.alert("", json.errmsg);
+                        }
                         loadMarsk.hide();
+                        tree.root.reload();
+                        tree.root.expand(true, false);
                     },
                     failure: function () {
-                        alert("操作失败");
+                        Ext.Msg.alert("", "操作失败");
                         tree.root.reload();
                         tree.root.expand(true, false);
                         loadMarsk.hide();

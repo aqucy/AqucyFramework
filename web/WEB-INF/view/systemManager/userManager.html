@@ -414,8 +414,8 @@
                 }
                 for (var k in row) {
                     var str = row[k] ? row[k] : "";
-                    if (k == "") {
-
+                    if (k == "password") {
+                        continue;
                     } else if (k == "sex") {
                         str = renderSex(str);
                     } else if (k == "status") {
@@ -506,11 +506,16 @@
             //刷新
             $("#refresh").click(function () {
                 refresh();
-                popGrid("findtest",function(row){
-                        alert(row["address"]);
-                })
             });
-
+            //权限
+            $("#permissionManagerButton").click(function () {
+                var row = getDataGridSelectedRow();
+                if (!row || row == undefined || row == null) {
+                    $.messager.alert("注意", "请选择一条数据!", "info");
+                    return;
+                }
+                location.href = "/systemManager/permissionManager?roleName="+row["username"]+"&t="+new Date().getTime();
+            });
             //重置
             $("#resetButton").click(function () {
                 $('#searchForm').form('reset');
@@ -765,6 +770,7 @@
 	<a id="delete" href="javascript:" class="easyui-linkbutton" plain="true" icon="delete">删除</a>
 	<a id="view" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-search">查看</a>
         <a id="refresh" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">刷新</a>
+        <a id="permissionManagerButton" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">权限</a>
 
 	</span>
     </div>
@@ -896,7 +902,7 @@
                                                       class="f1 easyui-textbox"/></td>
                     <td>密码:</td>
                     <td class="tdRightPadding"><input name="user.password" class="f1 easyui-textbox"
-                                                      data-options="required:true,validType:['length[6,18]']"/>
+                                                      data-options="required:false,validType:['length[6,18]']"/>
                     </td>
                     <td>姓名:</td>
                     <td class="tdRightPadding"><input name="user.userRealName" class="f1 easyui-textbox"
@@ -958,7 +964,7 @@
                 <td>登录ID:</td>
                 <td class="tdRightPadding" id="view_username"></td>
                 <td>密码:</td>
-                <td class="tdRightPadding" id="view_password"></td>
+                <td class="tdRightPadding" id="view_password">******</td>
                 <td>姓名:</td>
                 <td class="tdRightPadding" id="view_userRealName"></td>
             </tr>

@@ -1,0 +1,203 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/gray/easyui.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/icon.css"/>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/color.css"/>
+    <link rel="stylesheet" type="text/css" href="/css/icon.css"/>
+    <script type="text/javascript" src="/js/easyui/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/locale/easyui-lang-zh_CN.js"></script>
+    <script type="text/javascript" src="/js/json2.js"></script>
+    <script type="text/javascript">
+        $.parser.auto = false;
+        var layoutOk = false;
+        $.parser.onComplete = function (context) {
+            if(layoutOk){
+                $("#Loading").css("display","none");
+            }else{
+                layoutOk = true;
+            }
+        };
+        $(document).ready(function () {
+            $('#tree').tree({
+
+                url: '/systemManager/permissionManager?op=getMenu&roleId=${roleId!}',
+                onlyLeafCheck:true,
+                onLoadSuccess:function(){
+                    if(layoutOk){
+                        $("#Loading").css("display","none");
+                    }else{
+                        layoutOk = true;
+                    }
+                }
+
+            });
+            var currentTreeId = 0;
+            function initTree1(node,checked){
+                var json = [];
+                var allPermission = node.allPermission;
+                var havePermission = node.havePermission;
+                for(i=0;i<allPermission.length;i++){
+                    var nj = {};
+                    nj["text"] = allPermission[i].description;
+                    nj["permission"] = allPermission[i].permission;
+                    nj["id"] = allPermission[i].id;
+                    if(checked==undefined&&havePermission!=null&&havePermission!=undefined){
+                        var arr = havePermission.split(",");
+                        var v = allPermission[i].id+"";
+                        if($.inArray(v,arr)!=-1){
+                            nj["checked"] = true;
+                        }
+                    }else{
+                        nj["checked"] = checked;
+                    }
+                    json.push(nj);
+                }
+                $("#tree1").tree("loadData",json);
+            }
+            function saveConfig(){
+                var oldNode = $('#tree').tree("getSelected");
+
+
+                if(oldNode){
+                    var permission =  $("#tree1").tree("getRoots");
+                    var havePermission = "";
+                    for(i=0;i<permission.length;i++){
+                        if(permission[i].checked){
+                            havePermission = havePermission+permission[i].id+",";
+                        }
+                    }
+                    //保存配置
+                    var id = oldNode.id;
+                    var treeRoot = $("#tree").tree("getRoots");
+                    for(i=0;i<treeRoot.length;i++){
+                        if(treeRoot[i].id==id){
+                            treeRoot[i].havePermission = havePermission;
+                        }
+                    }
+                }
+            }
+            $('#tree').tree({
+                onClick: function (node) {
+                    initTree1(node);
+                    currentTreeId = node.id;
+                },
+                onBeforeSelect:function(node){
+                    if(currentTreeId!=node.id){
+                        saveConfig();
+                    }
+                },
+                onCheck:function(node,checked){
+                    if(node){
+                        $('#tree').tree("select", node.target);
+                    }
+                    if(currentTreeId!=node.id){
+                        initTree1(node);
+                        currentTreeId = node.id;
+                    }else{
+                        if(checked==false){
+                            initTree1(node,false);
+                        }
+                    }
+                }
+            });
+            $('#tree1').tree({
+                onCheck:function(node,checked){
+                    //右侧树勾选的结点
+                    var nodes = $('#tree1').tree('getChecked');
+                    //左侧树选择的节点
+                    var treeNode = $('#tree').tree('getSelected');
+                    if(nodes.length>0){
+                        $('#tree').tree("check", treeNode.target);
+                    }else{
+                        $('#tree').tree("uncheck", treeNode.target);
+                    }
+                }
+            });
+            function goBack(){
+                location.href = "/systemManager/userManager?t="+new Date().getTime();
+            }
+            $("#cancelButton").click(function(){
+                goBack();
+            });
+            $("#saveButton").click(function(){
+                saveConfig();
+                var data = $('#tree').tree("getChecked");
+                var treeArr = [];
+                var perArr = [];
+                for(i=0;i<data.length;i++){
+                    treeArr.push(data[i].id);
+                    var havePermission = data[i].havePermission;
+                    if(havePermission!=undefined&&havePermission!=null&&havePermission!=""){
+                        var arr = havePermission.split(",");
+                        for(j=0;j<arr.length;j++){
+                            var v  = arr[j];
+                            if(v!=""&&v!=null&&v!=undefined){
+                                perArr.push(v);
+                            }
+                        }
+                    }
+                }
+                $.messager.progress({
+                    title: '请稍后',
+                    msg: '操作进行中...'
+                });
+                $.ajax({
+                    type: 'POST',
+                    url: "/systemManager/permissionManager",
+                    data: {
+                        op: "save",
+                        roleId:${roleId!},
+                        menuId:treeArr.join(","),
+                        permissionId:perArr.join(",")
+                    },
+                    success: function (data) {
+                        $.messager.progress('close');
+                        if (data.errcode > 0) {
+                            alert(data.errmsg);
+                        } else {
+                            goBack();
+                        }
+                    },
+                    dataType: "json"
+                });
+            });
+            setTimeout(function(){
+                $.parser.parse();
+            },1000);
+        });
+    </script>
+</head>
+<body class="easyui-layout">
+
+<div id='Loading' style="position:absolute;z-index:1000;top:0px;left:0px;width:100%;height:100%;background:#DDDDDB;text-align:center;padding-top: 20%;"><h1><img src="/js/easyui/themes/gray/images/loading.gif"><font color="#15428B">加载中···</font></h1></div>
+<div data-options="region:'north',title:'',split:false" style="height:60px;">
+    <!--<label id="header">您正在为角色:${roleDescription!} 设置权限</label>-->
+    <div class="easyui-panel" title="您正在为角色:${roleDescription} 设置权限">
+        <a href="#" class="easyui-linkbutton" data-options="plain:true" icon="icon-save" id="saveButton">保存</a>
+        <a href="#" class="easyui-linkbutton" data-options="plain:true" icon="icon-cancel" id="cancelButton">取消</a>
+    </div>
+</div>
+<!--<div data-options="region:'south',title:'South Title',split:true" style="height:100px;"></div>-->
+<!--<div data-options="region:'east',title:'',split:true" style="width:10px;"></div>-->
+<div>
+
+</div>
+<div data-options="region:'west',title:'菜单',split:true" style="width:170px;">
+    <ul id="tree" class="easyui-tree" data-options="checkbox:true">
+    </ul>
+
+</div>
+<div id="tt" data-options="region:'center',title:'权限'"   style="padding:5px;">
+
+    <ul id="tree1" class="easyui-tree" data-options="checkbox:true,onlyLeafCheck:true">
+
+    </ul>
+</div>
+
+</body>
+</html>

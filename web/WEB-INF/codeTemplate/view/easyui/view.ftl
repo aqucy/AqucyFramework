@@ -33,6 +33,7 @@
         var del, subDel;
         var init = true;
         var pop;
+        var subPop
         function showCombboxData(itemId, code) {
             var data = $("#" + itemId).combobox("getData");
             if (data == null || data == "") {
@@ -78,6 +79,42 @@
                 }
             }
         </#if>
+
+        <#if tableConfig.subTableConfig??&&tableConfig.subTableConfig.hasSelectInput>
+            subPop = function (sqlCode, columnName, op) {
+                popGrid(sqlCode, subPopCallBack, columnName, op);
+            };
+            function subPopCallBack(row) {
+                var col = $("#popdg").datagrid('options')["columnName"];
+                var op = $("#popdg").datagrid('options')["op"];
+                var json;
+                if (op == "subAdd") {
+                    json = $("#subAddForm").serializeJson();
+                    <#list tableConfig.subTableConfig.allAddPojos as pojo>
+                        <#if pojo.inputType??&&pojo.inputType=="selectInput">
+                            if (col == '${pojo.columnName}') {
+                                <#list   pojo.selectInputConfig?keys as mk>
+                                    json['${tableConfig.subTableConfig.tableAliasName}.${mk}'] = row["${pojo.selectInputConfig[mk]}"];
+                                </#list>
+                            }
+                        </#if>
+                    </#list>
+                    $("#subAddForm").form("load", json);
+                } else {
+                    json = $("#subEditForm").serializeJson();
+                    <#list tableConfig.subTableConfig.allAddPojos as pojo>
+                        <#if pojo.inputType??&&pojo.inputType=="selectInput">
+                            if (col == '${pojo.columnName}') {
+                                <#list   pojo.selectInputConfig?keys as mk>
+                                    json['${tableConfig.subTableConfig.tableAliasName}.${mk}'] = row["${pojo.selectInputConfig[mk]}"];
+                                </#list>
+                            }
+                        </#if>
+                    </#list>
+                    $("#subEditForm").form("load", json);
+                }
+            }
+        </#if>
             /////////////////////////字典匹配////////////////////////////////////////////////////
         <#if tableConfig.dicts?exists>
             <#list  tableConfig.dicts?keys as key>
@@ -91,6 +128,20 @@
 
             </#list>
         </#if>
+<#if tableConfig.subViewObjectId gt 0>
+        <#if tableConfig.subTableConfig.dicts?exists>
+            <#list  tableConfig.subTableConfig.dicts?keys as key>
+                function render_sub_${subAcy[key]}(value) {
+                    <#list  tableConfig.subTableConfig.dicts[key] as obj>
+                        if (value == '${obj.value}') {
+                            return "${obj.label}";
+                        }
+                    </#list>
+                }
+
+            </#list>
+        </#if>
+</#if>
             function createDataGrid() {
                 var initUrl = '/project/${tableConfig.tableAliasName}?op=view';
                 initUrl = encodeURI(initUrl);
@@ -98,15 +149,15 @@
                         {
 
                             url: initUrl,
-                            idField: 'id',
-                            title: '学生作业',
+                            idField: '${tableConfig.primaryKey}',
+                            title: '${tableConfig.title}',
                             fit: true,
                             fitColumns: true,
-                            pageSize: 10,
+                            pageSize: 30,
                             pagination: true,
                             singleSelect: false,
                             selectOnCheck: true,
-                            sortName: 'id',
+                            sortName: '${tableConfig.primaryKey}',
                             pageList: [10, 30, 50, 100, 300, 500, 800, 1000],
                             sortOrder: 'desc',
                             ctrlSelect: true,
@@ -154,27 +205,31 @@
                                 gridname = 'dg';
                             },
                             onDblClickRow: function (index, row) {
+                            <#if tableConfig.subViewObjectId gt 0>
+                                view("${tableConfig.selfColumnForSubViewLink}");
+                            <#else>
                                 view();
+                            </#if>
                             }
                         });
             }
         <#if tableConfig.subViewObjectId gt 0>
             function createSubDataGrid(pvalue) {
-                var initUrl = '/project/${tableConfig.tableAliasName}/subTableManager?op=view&${tableConfig.tableAliasName}.${tableConfig.subViewLinkColumn}=' + pvalue;
+                var initUrl = '/project/${tableConfig.tableAliasName}/subTableManager?op=view&${tableConfig.subTableConfig.tableAliasName}.${tableConfig.subViewLinkColumn}=' + pvalue;
                 initUrl = encodeURI(initUrl);
                 $('#subdg').datagrid(
                         {
 
                             url: initUrl,
-                            idField: 'id',
-                            title: '学生作业',
+                            idField: '${tableConfig.subTableConfig.primaryKey}',
+                            title: '${tableConfig.subTableConfig.title}',
                             fit: true,
                             fitColumns: true,
-                            pageSize: 10,
+                            pageSize: 30,
                             pagination: true,
                             singleSelect: false,
                             selectOnCheck: true,
-                            sortName: 'id',
+                            sortName: '${tableConfig.subTableConfig.primaryKey}',
                             pageList: [10, 30, 50, 100],
                             sortOrder: 'desc',
                             ctrlSelect: true,
@@ -197,7 +252,7 @@
                                             field: '${pojo.columnName}',
                                             title: '${pojo.displayName}',
                                             <#if pojo.dictCode??>
-                                                formatter: render_${acy[pojo.dictCode]},
+                                                formatter: render_sub_${subAcy[pojo.dictCode]},
                                             </#if>
                                             sortable: true,
                                             width: 120
@@ -208,7 +263,10 @@
                                         if (!rec.id) {
                                             return '';
                                         }
-                                        var href = "<a href='javascript:' title='删除' onclick='subDel(" + rec.id + ")'><img src='/icons/delete.png'/></a>";
+                                        var href = '';
+                                        <#if tableConfig.subDelete>
+                                        href = "<a href='javascript:' title='删除' onclick='subDel(" + rec.id + ")'><img src='/icons/delete.png'/></a>";
+                                        </#if>
                                         return href;
                                     }
                                     }
@@ -227,7 +285,7 @@
                         });
             }
         </#if>
-        <#if tableConfig.hasSelectInput>
+        <#if tableConfig.hasSelectInput||(tableConfig.subTableConfig??&&tableConfig.subTableConfig.hasSelectInput)>
             function createPopDataGrid(code, callback, columnName, op) {
                 var url = "/project/${tableConfig.tableAliasName}?op=popGrid&popGridCode=" + code;
                 var init = true;
@@ -311,7 +369,7 @@
                 ids = ids.substring(0, ids.length - 1);
                 return ids;
             }
-
+            <aqu_add_or_edit>
             function action(fm, op) {
                 $.messager.progress({
                     title: '请稍后',
@@ -335,7 +393,7 @@
                             if (op == "add") {
                                 $('#addDialog').dialog('close');
                             } else if (op == "edit") {
-                                $('#editDialog').dialog('close')
+                                $('#editDialog').dialog('close');
                             }
                             refresh();
                         }
@@ -343,7 +401,8 @@
                     }
                 });
             }
-
+            </aqu_add_or_edit>
+            <aqu_add>
             //添加
             function add() {
                 $('#addForm').form('reset');
@@ -353,6 +412,8 @@
             $("#add").click(function () {
                 add();
             });
+            </aqu_add>
+            <aqu_edit>
             //编辑
             function edit() {
                 var row = getDataGridSelectedRow();
@@ -370,11 +431,11 @@
                 $('#editForm').form('load', json);
                 $('#editDialog').dialog('open').dialog('setTitle', '编辑');
             }
-
             //编辑
             $("#edit").click(function () {
                 edit();
             });
+            </aqu_edit>
             //查看
             function view(field) {
                 var row = getDataGridSelectedRow();
@@ -414,17 +475,25 @@
 
             //查看
             $("#view").click(function () {
+<#if tableConfig.subViewObjectId gt 0>
+                view("${tableConfig.selfColumnForSubViewLink}");
+<#else>
                 view();
+</#if>
 
             });
+            <aqu_add>
             //保存
             $("#addSaveButton").click(function () {
                 action($("#addForm"), "add");
             });
+            </aqu_add>
+            <aqu_edit>
             //保存
             $("#editSaveButton").click(function () {
                 action($("#editForm"), "edit");
             });
+            </aqu_edit>
             //查询
             $("#searchButton").click(function () {
                 $("#dg").datagrid("load", $("#searchForm").serializeJson());
@@ -433,7 +502,7 @@
             function refresh() {
                 $("#dg").datagrid("load", $("#searchForm").serializeJson());
             }
-        <#if tableConfig.hasSelectInput>
+        <#if tableConfig.hasSelectInput||(tableConfig.subTableConfig??&&tableConfig.subTableConfig.hasSelectInput)>
             //弹出选择
             function popGrid(code, callback, columnName, op) {
                 $('#popGrid').css("display", "none");
@@ -493,13 +562,14 @@
                 $('#searchForm').form('reset');
                 refresh();
             });
+            <aqu_delete>
             del = function (id) {
                 //获取选中的ID串
                 var ids;
                 if (id) {
                     ids = id;
                 } else {
-                    ids = getDataGridSelectedDatas('id');
+                    ids = getDataGridSelectedDatas('${tableConfig.primaryKey}');
                 }
                 if (ids.length <= 0) {
                     $.messager.alert("注意", "请选择至少一条数据", "info");
@@ -526,12 +596,13 @@
                             },
                             error: function (data) {
                                 $.messager.progress('close');
-                                $.messager.alert('错误', data, "error");
+                                $.messager.alert('服务器发生错误', "错误代码:"+data.status, "error");
                             }
                         });
                     }
                 });
             }
+            </aqu_delete>
             //删除
             $("#delete").click(function () {
                 del();
@@ -565,7 +636,7 @@
                 ids = ids.substring(0, ids.length - 1);
                 return ids;
             }
-
+            <#if tableConfig.subAdd||tableConfig.subEdit>
             function subAction(fm, op) {
                 $.messager.progress({
                     title: '请稍后',
@@ -597,16 +668,26 @@
                     }
                 });
             }
-
+            </#if>
+            <#if tableConfig.subAdd>
             //添加
             function subAdd() {
+                var json={};
+                json["${tableConfig.subTableConfig.tableAliasName}.${tableConfig.subViewLinkColumn}"] = getDataGridSelectedData("${tableConfig.selfColumnForSubViewLink}");
                 $('#subAddForm').form('reset');
+                $('#subAddForm').form('load',json);
                 $('#subAddDialog').dialog('open').dialog('setTitle', '添加');
             }
 
             $("#subAdd").click(function () {
                 subAdd();
             });
+                //保存
+                $("#subAddSaveButton").click(function () {
+                    subAction($("#subAddForm"), "add");
+                });
+            </#if>
+            <#if tableConfig.subEdit>
             //编辑
             function subEdit() {
                 var row = getSubDataGridSelectedRow();
@@ -617,7 +698,7 @@
                 $('#subEditForm').form('reset');
                 var json = {};
                 for (var k in row) {
-                    $(json).attr("user." + k, row[k]);
+                    $(json).attr("${tableConfig.subTableConfig.tableAliasName}." + k, row[k]);
                 }
                 $(json).attr("op", "edit");
 
@@ -629,6 +710,11 @@
             $("#subEdit").click(function () {
                 subEdit();
             });
+                //保存
+                $("#subEditSaveButton").click(function () {
+                    subAction($("#subEditForm"), "edit");
+                });
+            </#if>
             //查看
             function subView() {
                 var row = getSubDataGridSelectedRow();
@@ -638,13 +724,17 @@
                 }
                 for (var k in row) {
                     var str = row[k] ? row[k] : "";
-                    if (k == "") {
+                if (k == "")
+                {
 
-                    } else if (k == "sex") {
-                        str = renderSex(str);
-                    } else if (k == "status") {
-                        str = renderStatus(str);
-                    }
+                }
+                    <#if tableConfig.subTableConfig.dicts?exists>
+                        <#list  tableConfig.subTableConfig.dicts?keys as key>
+                        else if (k == "${subAcy[key]}") {
+                            str = render_sub_${subAcy[key]}(str);
+                        }
+                        </#list>
+                    </#if>
                     $("#view_sub_" + k).text(str);
                 }
                 $('#subViewDialog').dialog('open').dialog('setTitle', '查看');
@@ -655,14 +745,8 @@
                 subView();
 
             });
-            //保存
-            $("#subSddSaveButton").click(function () {
-                action($("#subAddForm"), "add");
-            });
-            //保存
-            $("#subEditSaveButton").click(function () {
-                action($("#subEditForm"), "edit");
-            });
+
+
             //查询
             $("#subSearchButton").click(function () {
                 $("#subdg").datagrid("load", $("#subSearchForm").serializeJson());
@@ -681,13 +765,14 @@
                 $('#subSearchForm').form('reset');
                 subRefresh();
             });
+            <#if tableConfig.subDelete>
             subDel = function (id) {
                 //获取选中的ID串
                 var ids;
                 if (id) {
                     ids = id;
                 } else {
-                    ids = getSubDataGridSelectedDatas('id');
+                    ids = getSubDataGridSelectedDatas('${tableConfig.subTableConfig.primaryKey}');
                 }
                 if (ids.length <= 0) {
                     $.messager.alert("注意", "请选择至少一条数据", "info");
@@ -707,23 +792,24 @@
                             success: function (data) {
                                 $.messager.progress('close');
                                 showMsg("删除成功");
-                                refresh();
+                                subRefresh();
                                 if (data.errcode != 0) {
                                     $.messager.alert("错误", data.errmsg, "error");
                                 }
                             },
                             error: function (data) {
                                 $.messager.progress('close');
-                                $.messager.alert('错误', data, "error");
+                                $.messager.alert('服务器发生错误', "错误代码:"+data.status, "error");
                             }
                         });
                     }
                 });
-            }
+            };
             //删除
             $("#subDelete").click(function () {
                 subDel();
             });
+            </#if>
         </#if>
             init = false;
             setTimeout(function () {
@@ -740,10 +826,15 @@
 <div id="dg_tb" style="padding:3px; height: auto">
     <div style="height:30px;" class="datagrid-toolbar">
 	<span style="float:left;">
-
+    <aqu_add>
 	<a id="add" href="javascript:" class="easyui-linkbutton" plain="true" icon="add">添加</a>
+    </aqu_add>
+        <aqu_edit>
 	<a id="edit" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-edit">编辑</a>
+        </aqu_edit>
+        <aqu_delete>
 	<a id="delete" href="javascript:" class="easyui-linkbutton" plain="true" icon="delete">删除</a>
+        </aqu_delete>
 	<a id="view" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-search">查看</a>
         <a id="refresh" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">刷新</a>
 
@@ -811,6 +902,7 @@
         </form>
     </div>
 </div>
+<aqu_add>
 <div id="addDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
      data-options="closed:true,buttons:'#addDialog-buttons',modal:true,iconCls:'icon-add'">
     <form id="addForm" action="/systemManager/userManager" method="post">
@@ -853,6 +945,14 @@
                            name="${tableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
                            data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','add')}"
                            style="width:170px;height:24px;">
+                <#elseif pojo.inputType??&&pojo.inputType=="datebox">
+                    <input id="add_${pojo.columnName}"  ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datebox"/>
+                <#elseif pojo.inputType??&&pojo.inputType=="datetimebox">
+                    <input id="add_${pojo.columnName}"  ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datetimebox"/>
                 <#else>
                     <input id="add_${pojo.columnName}"  ${inputStyle}
                            name="${tableConfig.tableAliasName}.${pojo.columnName}"
@@ -874,11 +974,13 @@
            onclick="javascript:$('#addDialog').dialog('close')">取消</a>
     </div>
 </div>
+    </aqu_add>
+<aqu_edit>
 <div id="editDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
      data-options="closed:true,buttons:'#editDialog-buttons',modal:true,iconCls:'icon-edit'">
     <form id="editForm" action="/systemManager/userManager" method="post">
         <input type="hidden" name="op" value="edit"/>
-        <input type="hidden" name="${tableConfig.tableAliasName}.id" value="0"/>
+        <input type="hidden" name="${tableConfig.tableAliasName}.${tableConfig.primaryKey}" value="0"/>
         <table style="font-size: 12px;text-align: right">
         <#list tableConfig.allEditPojos as pojo>
             <#if pojo.maxLength gt 0 && pojo.validateType??>
@@ -918,6 +1020,14 @@
                            name="${tableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
                            data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','edit')}"
                            style="width:170px;height:24px;">
+                <#elseif pojo.inputType??&&pojo.inputType=="datebox">
+                    <input id="edit_${pojo.columnName}"  ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datebox"/>
+                <#elseif pojo.inputType??&&pojo.inputType=="datetimebox">
+                    <input id="edit_${pojo.columnName}"  ${inputStyle}
+                           name="${tableConfig.tableAliasName}.${pojo.columnName}"
+                           data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datetimebox"/>
                 <#else>
                     <input id="edit_${pojo.columnName}"  ${inputStyle}
                            name="${tableConfig.tableAliasName}.${pojo.columnName}"
@@ -938,10 +1048,11 @@
            onclick="javascript:$('#editDialog').dialog('close')">取消</a>
     </div>
 </div>
+</aqu_edit>
 <div id="viewDialog" class="easyui-dialog" style="width: 800px; ${subTableDialogHeight} padding: 10px 20px"
      data-options="closed:true,buttons:'#viewDialog-buttons',modal:true,iconCls:'icon-search'">
     <table style="font-size: 12px;text-align: right" id="subable">
-    <#list tableConfig.allEditPojos as pojo>
+    <#list tableConfig.allDisplayPojos as pojo>
         <#assign tdCount=tdCount+1>
         <#if pojo_index%3==0&&pojo_has_next>
         <tr>
@@ -960,10 +1071,15 @@
         <div id="subdg_tb" style="padding:3px; height: auto">
             <div style="height:30px;" class="datagrid-toolbar">
 	<span style="float:left;">
-
+    <#if tableConfig.subAdd>
 	<a id="subAdd" href="javascript:" class="easyui-linkbutton" plain="true" icon="add">添加</a>
+        </#if>
+        <#if tableConfig.subEdit>
 	<a id="subEdit" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-edit">编辑</a>
-	<a id="subDelete" href="javascript:" class="easyui-linkbutton" plain="true" icon="delete">删除</a>STATUS
+        </#if>
+        <#if tableConfig.subDelete>
+	<a id="subDelete" href="javascript:" class="easyui-linkbutton" plain="true" icon="delete">删除</a>
+        </#if>
 	<a id="subView" href="javascript:" class="easyui-linkbutton" plain="true" icon="icon-search">查看</a>
         <a id="subRefresh" href="javascript:" class="easyui-linkbutton" plain="true" icon="arrowrefresh">刷新</a>
 
@@ -1011,14 +1127,14 @@
                                                        data-options="required:false${validate}" class="f1 easyui-textbox"/>
                             </#if>
                             <#if tdCount==3&&!pojo_has_next>
-                                <a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find"></a><a
-                                    href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase"></a>
+                                <a href="javascript:" id="subSearchButton" class="easyui-linkbutton" icon="find"></a><a
+                                    href="javascript:" id="subResetButton" class="easyui-linkbutton" icon="erase"></a>
                             </td>
                             <#elseif !pojo_has_next>
                                 </td>
                                 <td></td>
-                                <td><a href="javascript:" id="searchButton" class="easyui-linkbutton" icon="find">查询</a><a
-                                        href="javascript:" id="resetButton" class="easyui-linkbutton" icon="erase">重置</a></td>
+                                <td><a href="javascript:" id="subSearchButton" class="easyui-linkbutton" icon="find">查询</a><a
+                                        href="javascript:" id="subResetButton" class="easyui-linkbutton" icon="erase">重置</a></td>
                             <#else>
                                 </td>
                             </#if>
@@ -1040,10 +1156,12 @@
 </div>
 <#if tableConfig.subViewObjectId gt 0>
 <div id="subdlgs">
+    <#if tableConfig.subAdd>
     <div id="subAddDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
          data-options="closed:true,buttons:'#subAddDialog-buttons',modal:true,iconCls:'icon-add'">
         <form id="subAddForm" action="/systemManager/userManager" method="post">
             <input type="hidden" name="op" value="add"/>
+            <input type="hidden" name="${tableConfig.subTableConfig.tableAliasName}.${tableConfig.subViewLinkColumn}" value=""/>
             <table style="font-size: 12px;text-align: right">
                 <#list tableConfig.subTableConfig.allAddPojos as pojo>
                     <#if pojo.maxLength gt 0 && pojo.validateType??>
@@ -1080,8 +1198,16 @@
                         <#elseif pojo.inputType??&&pojo.inputType=="selectInput">
                             <input id="add_${pojo.columnName}" ${inputStyle}
                                    name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
-                                   data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','add')}"
+                                   data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){subPop('${tableConfig.subTableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','subAdd')}"
                                    style="width:170px;height:24px;">
+                        <#elseif pojo.inputType??&&pojo.inputType=="datebox">
+                            <input id="add_${pojo.columnName}"  ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datebox"/>
+                        <#elseif pojo.inputType??&&pojo.inputType=="datetimebox">
+                            <input id="add_${pojo.columnName}"  ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datetimebox"/>
                         <#else>
                             <input id="add_${pojo.columnName}"  ${inputStyle}
                                    name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
@@ -1103,11 +1229,13 @@
                onclick="javascript:$('#subAddDialog').dialog('close')">取消</a>
         </div>
     </div>
+        </#if>
+    <#if tableConfig.subEdit>
     <div id="subEditDialog" class="easyui-dialog" style="width: 800px; height: auto; padding: 10px 20px"
          data-options="closed:true,buttons:'#subEditDialog-buttons',modal:true,iconCls:'icon-edit'">
         <form id="subEditForm" action="/systemManager/userManager" method="post">
             <input type="hidden" name="op" value="edit"/>
-            <input type="hidden" name="user.id" value="0"/>
+            <input type="hidden" name="${tableConfig.subTableConfig.tableAliasName}.${tableConfig.subTableConfig.primaryKey}" value="0"/>
             <table style="font-size: 12px;text-align: right">
                 <#list tableConfig.subTableConfig.allEditPojos as pojo>
                     <#if pojo.maxLength gt 0 && pojo.validateType??>
@@ -1145,8 +1273,16 @@
                         <#elseif pojo.inputType??&&pojo.inputType=="selectInput">
                             <input id="edit_${pojo.columnName}" ${inputStyle}
                                    name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}" class="easyui-textbox"
-                                   data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){pop('${tableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','edit')}"
+                                   data-options="editable:false,buttonText:'',buttonIcon:'icon-search',prompt:'',onClickButton:function(){subPop('${tableConfig.subTableConfig.tableAliasName}_${pojo.columnName}','${pojo.columnName}','subEdit')}"
                                    style="width:170px;height:24px;">
+                        <#elseif pojo.inputType??&&pojo.inputType=="datebox">
+                            <input id="edit_${pojo.columnName}"  ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datebox"/>
+                        <#elseif pojo.inputType??&&pojo.inputType=="datetimebox">
+                            <input id="edit_${pojo.columnName}"  ${inputStyle}
+                                   name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
+                                   data-options="editable:false,required:${pojo.required?c}${validate}" class="f1 easyui-datetimebox"/>
                         <#else>
                             <input id="edit_${pojo.columnName}"  ${inputStyle}
                                    name="${tableConfig.subTableConfig.tableAliasName}.${pojo.columnName}"
@@ -1168,25 +1304,22 @@
                onclick="javascript:$('#subEditDialog').dialog('close')">取消</a>
         </div>
     </div>
+    </#if>
     <div id="subViewDialog" class="easyui-dialog" style="width: 800px; padding: 10px 20px"
          data-options="closed:true,buttons:'#subViewDialog-buttons',modal:true,iconCls:'icon-search'">
         <table style="font-size: 12px;text-align: right">
-            <tr>
-                <td style="width: 60px;">店铺名称:</td>
-                <td class="tdRightPadding" id="view_sub_shopName"></td>
-                <td style="width: 60px;">店铺地址:</td>
-                <td class="tdRightPadding" id="view_sub_address"></td>
-                <td style="width: 60px;">营业时间:</td>
-                <td class="tdRightPadding" id="view_sub_openDate"></td>
-            </tr>
-            <tr>
-                <td style="width: 60px;">状态:</td>
-                <td class="tdRightPadding" id="view_sub_status"></td>
-                <td style="width: 60px;">店龄:</td>
-                <td class="tdRightPadding" id="view_sub_age"></td>
-                <td></td>
-                <td></td>
-            </tr>
+            <#list tableConfig.subTableConfig.allDisplayPojos as pojo>
+                <#assign tdCount=tdCount+1>
+                <#if pojo_index%3==0&&pojo_has_next>
+                <tr>
+                </#if>
+                <td>${pojo.displayName}:</td>
+                <td class="tdRightPadding" id="view_sub_${pojo.columnName}"></td>
+                <#if tdCount==3||!pojo_has_next>
+                    <#assign tdCount=0>
+                </tr>
+                </#if>
+            </#list>
 
         </table>
 
@@ -1198,7 +1331,7 @@
     </div>
 </div>
 </#if>
-<#if tableConfig.hasSelectInput>
+<#if tableConfig.hasSelectInput||(tableConfig.subTableConfig??&&tableConfig.subTableConfig.hasSelectInput)>
 <div id="popGrid" class="easyui-dialog" style="width: 800px; height: 400px; padding: 10px 20px"
      data-options="closed:true,buttons:'#popGridDialog-buttons',modal:true,iconCls:'icon-search'">
 

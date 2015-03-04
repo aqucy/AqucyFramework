@@ -34,6 +34,16 @@ public class TableConfig {
     private boolean subEdit;
     private String selfColumnForSubViewLink;
     private  TableConfig subTableConfig = null;
+    private String templateName = null;
+
+
+    public String getTemplateName() {
+        return templateName;
+    }
+
+    public void setTemplateName(String templateName) {
+        this.templateName = templateName;
+    }
 
     public TableConfig getSubTableConfig() {
         return subTableConfig;

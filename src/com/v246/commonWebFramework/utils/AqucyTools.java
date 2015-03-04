@@ -8,10 +8,8 @@ import com.jfinal.kit.StrKit;
 import com.jfinal.plugin.activerecord.Db;
 import com.jfinal.plugin.activerecord.Page;
 import com.jfinal.plugin.activerecord.Record;
-import com.v246.commonWebFramework.dao.DictionaryModel;
-import com.v246.commonWebFramework.dao.PopGridSqlModel;
-import com.v246.commonWebFramework.dao.ViewObjectColumnConfigModel;
-import com.v246.commonWebFramework.dao.ViewObjectModel;
+import com.v246.commonWebFramework.dao.*;
+import com.v246.commonWebFramework.pojo.User;
 import com.v246.commonWebFramework.utils.createCode.pojo.ColumnPojo;
 import com.v246.commonWebFramework.utils.createCode.pojo.TableConfig;
 import net.sf.jsqlparser.JSQLParserException;
@@ -19,6 +17,9 @@ import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.select.*;
+import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.session.Session;
+import org.apache.shiro.subject.Subject;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.*;
  * Created by aquaqu on 2015/1/22.
  */
 public class AqucyTools {
+    private static String srcPath = null;
     final static CCJSqlParserManager parserManager = new CCJSqlParserManager();
 //    public void doPopGrid(Controller c) {
 //        String code = c.getPara("popGridCode");
@@ -268,11 +270,21 @@ public class AqucyTools {
             root.put("errmsg","别名不能为空");
             return root;
         }
+        if (jo.has("primaryKey")) {
+            tableConfig.setPrimaryKey(jo.path("primaryKey").asText());
+        }else{
+            root.put("errmsg","主键不能为空");
+            return root;
+        }
         if (jo.has("id")) {
             long id = Long.parseLong(jo.path("id").asText());
             if(id>0){
                 tableConfig.setId(id);
             }
+        }
+        if (jo.has("templateName")) {
+            String  templateName = jo.path("templateName").asText();
+            tableConfig.setTemplateName(templateName);
         }
         if (jo.has("reCreate")&&"yes".equalsIgnoreCase(jo.path("reCreate").asText())) {
             reCreate = true;
@@ -314,7 +326,19 @@ public class AqucyTools {
         if(tableConfig.getId()<=0){
             File file = new File(PathKit.getWebRootPath() + "/WEB-INF/view/project/" + tableConfig.getTableAliasName() + ".html");
             if (file.exists()) {
-                root.put("errmsg","别名重复");
+                root.put("errmsg","别名重复(文件)");
+                return root;
+            }
+            //权限组名也不可以重复
+            PermissionsModel model = PermissionsModel.dao.findFirst("SELECT id FROM acyframework_permissions where groupName=?", tableConfig.getTableAliasName());
+            if(model!=null){
+                root.put("errmsg","别名重复(权限组名)");
+                return root;
+            }
+            //VO别名不可重复
+            ViewObjectModel vo = ViewObjectModel.dao.findFirst("SELECT * FROM acyframework_view_object where tableAliasName=?", tableConfig.getTableAliasName());
+            if(vo!=null){
+                root.put("errmsg","别名重复(数据库数据)");
                 return root;
             }
         }else{
@@ -383,9 +407,17 @@ public class AqucyTools {
                 }
                 if (myjo.has("allowAdd")) {
                     columnPojo.setAllowAdd(myjo.path("allowAdd").asText().equalsIgnoreCase("是"));
+                    if(columnPojo.isAllowAdd()&&StrKit.isBlank(columnPojo.getDisplayName())){
+                        root.put("errmsg","列:"+columnPojo.getColumnName()+" 您设置为增加,但显示内容为空!");
+                        return root;
+                    }
                 }
                 if (myjo.has("allowEdit")) {
                     columnPojo.setAllowEdit(myjo.path("allowEdit").asText().equalsIgnoreCase("是"));
+                    if(columnPojo.isAllowEdit()&&StrKit.isBlank(columnPojo.getDisplayName())){
+                        root.put("errmsg","列:"+columnPojo.getColumnName()+" 您设置为可编辑,但显示内容为空!");
+                        return root;
+                    }
                 }
                 if (myjo.has("inputType")&&StrKit.notBlank(myjo.path("inputType").asText())) {
                     String inputType = myjo.path("inputType").asText();
@@ -422,7 +454,7 @@ public class AqucyTools {
                 if (myjo.has("regErrMsg")) {
                     columnPojo.setRegexErrorMsg(myjo.path("regErrMsg").asText());
                 }
-                if (myjo.has("allowQuery")) {
+                if (myjo.has("allowQuery")&&StrKit.notBlank(columnPojo.getDisplayName())) {
                     boolean allowQuery = "是".equalsIgnoreCase(myjo.path("allowQuery").asText());
 //                        if(StrKit.isBlank(columnPojo.getDisplayName())){
 //                            allowQuery = false;
@@ -462,13 +494,19 @@ public class AqucyTools {
         root.put("tableConfig",tableConfig);
         return root;
     }
-    public void saveConfigToDb(TableConfig tableConfig) throws Exception{
+    public long saveConfigToDb(TableConfig tableConfig) throws Exception{
         try{
             ViewObjectModel vo = null;
+            boolean insert = false;
             if(tableConfig.getId()>0){
                 vo = ViewObjectModel.dao.findById(tableConfig.getId());
             }else{
+                //VO别名不可重复
+                vo = ViewObjectModel.dao.findFirst("SELECT * FROM acyframework_view_object where tableAliasName=?", tableConfig.getTableAliasName());
+            }
+            if(vo==null){
                 vo = new ViewObjectModel();
+                insert = true;
             }
             vo.set("title",tableConfig.getTitle());
             vo.set("tableAliasName", tableConfig.getTableAliasName());
@@ -477,18 +515,21 @@ public class AqucyTools {
             vo.set("allowSubViewObjectDelete",tableConfig.isSubDelete());
             vo.set("allowSubViewObjectEdit",tableConfig.isSubEdit());
             vo.set("allowAdd",tableConfig.isAdd());
+            vo.set("primaryKey", tableConfig.getPrimaryKey());
             vo.set("allowEdit",tableConfig.isEdit());
             vo.set("allowDelete",tableConfig.isDelete());
             vo.set("subViewObjectId",tableConfig.getSubViewObjectId());
             vo.set("subViewLinkColumn",tableConfig.getSubViewLinkColumn());
             vo.set("selfColumnForSubViewLink",tableConfig.getSelfColumnForSubViewLink());
             vo.set("selfColumnsToSubViewUpdate",tableConfig.getSelfColumnsToSubViewUpdate());
+            vo.set("templateName", tableConfig.getTemplateName());
 //            vo.set("status", status);
-            if(tableConfig.getId()>0){
+            if(insert==false){
                 vo.update();
             }else{
                 vo.save();
             }
+            tableConfig.setId(vo.getLong("id"));
             List<ColumnPojo> list = tableConfig.getColumnPojos();
             for(ColumnPojo pojo:list){
                 ViewObjectColumnConfigModel vocc;
@@ -520,8 +561,28 @@ public class AqucyTools {
                     vocc.save();
                 }
             }
+            return vo.getLong("id");
         }catch (Exception e){
             throw e;
         }
+    }
+    public static User getSessionUser(){
+        Subject currentUser = SecurityUtils.getSubject();
+        Session session = currentUser.getSession();
+        return (User)session.getAttribute("user");
+    }
+    public static boolean isPermission(String p){
+        Subject currentUser = SecurityUtils.getSubject();
+        return currentUser.isPermitted(p);
+    }
+    public static boolean hasRole(String p){
+        Subject currentUser = SecurityUtils.getSubject();
+        return currentUser.hasRole(p);
+    }
+    public static String getSrcPath(){
+        if(srcPath==null){
+            srcPath= PathKit.getWebRootPath().substring(0, PathKit.getWebRootPath().length() - 4);
+        }
+        return srcPath;
     }
 }
